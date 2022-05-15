@@ -42,11 +42,14 @@ int buff_pos = 0;
 char read_char_fast() {
   if(buff_pos >= buff_size) {
     buff_size = read( STDIN_FILENO, buffer, sizeof(buffer));
-    //printf("buffer size is: %d\n", buff_size);
+    //read in up to 1MB from the file
 
-    if(buff_size <= 0) return '\n';
+    if(buff_size <= 0) return '\0';
+    //if there is an error or the end of the file has been reached,
+    //return \0
 
     buff_pos = 0;
+    //reset the position to the start of the buffer
   }
 
   return buffer[buff_pos++];
@@ -58,10 +61,18 @@ char read_char_fast() {
 std::string stdin_readline()
 {
   std::string result;
-  while( true ) {
-    char buff = read_char_fast();
+  char buff;
+  while(true) {
+    buff = read_char_fast();
+    
+    if(buff == '\0') {
+      break;
+    }
+
     result.push_back(buff);
-    if( buff == '\n') break;
+    if( buff == '\n') {
+      break;
+    } 
   }
   return result;
 }
