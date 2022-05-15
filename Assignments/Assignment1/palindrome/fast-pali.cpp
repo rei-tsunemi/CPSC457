@@ -5,8 +5,6 @@
 #include <string>
 #include <vector>
 
-#define MB (1024 * 1024)
-
 // split string p_line into a vector of strings (words)
 // the delimiters are 1 or more whitespaces
 std::vector<std::string>
@@ -32,18 +30,19 @@ split( const std::string & p_line)
 }
 
 // global variable used in read_char_fast()
-char buffer[MB];
+char buffer[1024*1024];
 int buff_size = 0;
 int buff_pos = 0;
 // global variables takn from lines 20-22 of fast-int.cpp from
   // https://gitlab.com/cpsc457p21/longest-int-my-getchar 
 
 
-// fast reading characters adaped from lines 28-40 of fast-int.cpp
+// fast reading characters adapted from lines 28-40 of fast-int.cpp
   // from https://gitlab.com/cpsc457p21/longest-int-my-getchar 
 char read_char_fast() {
   if(buff_pos >= buff_size) {
-    buff_size = read(STDIN_FILENO, buffer, MB);
+    buff_size = read( STDIN_FILENO, buffer, sizeof(buffer));
+    //printf("buffer size is: %d\n", buff_size);
 
     if(buff_size <= 0) return '\n';
 
@@ -53,16 +52,14 @@ char read_char_fast() {
   return buffer[buff_pos++];
 }
 
-// global variable for stdin_readline()
-char buff;
-
 // reads in a line from STDIN
 // reads until \n or EOF and result includes \n if present
 // returns empty string on EOF
 std::string stdin_readline()
 {
   std::string result;
-  while( 1 == read( STDIN_FILENO, & buffer, 1)) {
+  while( true ) {
+    char buff = read_char_fast();
     result.push_back(buff);
     if( buff == '\n') break;
   }
