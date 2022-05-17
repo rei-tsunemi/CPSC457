@@ -1,0 +1,10 @@
+total 16
+-rw------- 1 danielle.jourdain ug   40 May 14 20:28 accessToken.txt
+drwx------ 3 danielle.jourdain ug 4096 May 14 11:02 Assignments
+drwx------ 2 danielle.jourdain ug 4096 May 13 10:54 Lectures
+-rw------- 1 danielle.jourdain ug    0 May 17 11:32 lslog.txt
+drwx------ 3 danielle.jourdain ug 4096 May 17 10:54 Tutorials
+
+real	0m0.027s
+user	0m0.001s
+sys	0m0.006s
