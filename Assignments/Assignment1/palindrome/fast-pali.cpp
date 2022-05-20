@@ -1,3 +1,6 @@
+// most of this file is copied from slow-pali.cpp and edited 
+  // to improve the speed and efficiency
+
 #include <unistd.h>
 #include <stdio.h>
 #include <stdio.h>
@@ -33,7 +36,7 @@ split( const std::string & p_line)
 char buffer[1024*1024];
 int buff_size = 0;
 int buff_pos = 0;
-// global variables takn from lines 20-22 of fast-int.cpp from
+// global variables taken from lines 20-22 of fast-int.cpp from
   // https://gitlab.com/cpsc457p21/longest-int-my-getchar 
 
 
