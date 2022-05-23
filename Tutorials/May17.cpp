@@ -71,11 +71,22 @@ int main() {
     //dirContentStack.d_name;
 
     int b;
+    int chdirRet;
 
+    //
     while((dirContent = readdir(dir)) != NULL) {
         b = dirContent->d_type == DT_DIR && !TRIVIAL_DIR(dirContent->d_name);
         if(b) {
-            printf("non trivial dir name = %s\n", dirContent->d_name);
+            //closedir(dir);
+            chdirRet = chdir(dirContent->d_name);
+            if(chdirRet != 0) {
+                printf("changing to directory %s fails\n", dirContent->d_name);
+                break;
+            }
+
+            printf("changed directory to '%s'\n", dirContent->d_name);
+            closedir(dir);  //close directory here to avoid double freeing
+            dir = opendir(".");
         }
     }
 
