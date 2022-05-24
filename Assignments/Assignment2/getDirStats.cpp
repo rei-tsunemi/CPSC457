@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <dirent.h>
 
 static bool
 is_dir(const std::string & path)
@@ -33,14 +34,77 @@ is_dir(const std::string & path)
 // if successful, results.valid = true
 // on failure, results.valid = false
 //
-Results 
-getDirStats(const std::string & dir_name, int n)
+Results getDirStats(const std::string & dir_name, int n)
 {
   // The results below are all hard-coded, to show you all the fields
   // you need to calculate. You should delete all code below and
   // replace it with your own code.
   Results res;
 
+  res.n_dirs = 0;
+  res.n_files = 0;
+  //since the top directory is not included in the number of directories,
+  //set both the number of files and number of directories to 0 to begin
+
+  res.largest_file_size = 0;
+  res.all_files_size = 0;
+  //also initialize the largest and total file size to 0
+
+  res.largest_file_path = "";
+
+  DIR* directory;
+  directory = opendir(".");
+  struct dirent* contents;
+  contents = readdir(directory);
+
+  while(contents != NULL) {
+    bool isDir = (contents->d_type == DT_DIR);
+    //check if the current directory entry is another directory
+
+    if(isDir) {
+      std::string name = contents->d_name;
+      bool isTrivial = (name.compare(".") == 0) || ( name.compare("..") == 0);
+      //if the current directory entry is another directory, first check if it is trivial or not
+
+      if(isTrivial) {
+        continue;
+        //if it is a trivial directory, skip this iteration of the loop
+      }
+      
+      res.n_dirs++;
+      //since a non trivial directory was found, increment the number of directories
+
+      Results dirRes = getDirStats(name, n);
+      //recursively get the directory stats for this sub-directory
+
+      if(dirRes.largest_file_size > res.largest_file_size) {
+        res.largest_file_size = dirRes.largest_file_size;
+        //if the sub-directory held a larger file than the previous largest file,
+        //change the largest_file_size value
+
+        std::string longestPath = dirRes.largest_file_path;
+        longestPath.insert(0, name);
+        //insert the current directory name to the largest file path
+      }
+      
+      res.n_dirs += dirRes.n_dirs;
+      res.n_files += dirRes.n_files;
+      //add the number of files and directories the directory has
+      //to the current values
+    }
+    else {
+      res.n_files++;
+      
+
+      //its a file so do something else
+    }
+
+    contents = readdir(directory);
+  }
+
+  closedir(directory);
+
+  /*
   if (! is_dir(dir_name)) return res;
 
   // prepare a fake results
@@ -69,6 +133,7 @@ getDirStats(const std::string & dir_name, int n)
   group2.push_back(dir_name + "/docs/readme.txt");
   group2.push_back(dir_name + "/x.y");
   res.duplicate_files.push_back(group2);
+  */
 
   return res;
 }
