@@ -15,8 +15,7 @@
 #include <unistd.h>
 #include <dirent.h>
 
-static bool
-is_dir(const std::string & path)
+static bool is_dir(const std::string & path)
 {
   struct stat buff;
   if (0 != stat(path.c_str(), & buff)) return false;
@@ -58,7 +57,9 @@ Results getDirStats(const std::string & dir_name, int n)
   contents = readdir(directory);
 
   while(contents != NULL) {
-    bool isDir = (contents->d_type == DT_DIR);
+    char* pathname;
+    pathname = getcwd(pathname);
+    bool isDir = is_dir(pathname);
     //check if the current directory entry is another directory
 
     if(isDir) {
@@ -95,8 +96,26 @@ Results getDirStats(const std::string & dir_name, int n)
     else {
       res.n_files++;
       
+      struct stat* buf;
+      int read = stat(pathname, buf);
+      //attemt to read the file data using stat
+      if(read != 0) {
+        std::cout << "Error reading file" << std::endl:
+        exit(1);
+        //if the read fails, terminate the program
+      }
 
-      //its a file so do something else
+      if(buf->st_size > res.largest_file_size) {
+        //if the current file is largest than the previous largest file,
+        //replace the largest file data
+        res.largest_file_size = buf->st_size;
+        res.largest_file_path = contents->d_name;
+      }      
+
+      res.all_files_size += buf->st_size;
+      //add the current file size to the total file size
+
+      
     }
 
     contents = readdir(directory);
