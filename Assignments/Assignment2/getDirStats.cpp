@@ -15,6 +15,9 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <iostream>
+#include <cstring>
+
+#define TRIVIAL_DIR(buf) (((buf)[0] == '.' && (buf)[1] == '\0') || ((buf)[0] == '.' && (buf)[1] == '.' && (buf)[2] == '\0'))
 
 static bool is_dir(const std::string & path)
 {
@@ -43,6 +46,61 @@ Results getDirStats(const std::string & dir_name, int n)
 
   res.n_dirs = 0;
   res.n_files = 0;
+  //set the number of files and directories to 0 to start
+
+  res.largest_file_path = "";
+  res.all_files_size = 0;
+  res.largest_file_size = 0;
+  //also initilalize the values for other Results values
+
+  /* code for opening and reading through a directory adapted from May 17 tutorial code */
+  DIR* dir;
+  dir = opendir(dir_name.c_str());
+  //open the current directory
+
+  struct dirent* dirContent;
+  bool isDir;
+
+  while((dirContent = readdir(dir)) != NULL) {
+    isDir = (dirContent->d_type == DT_DIR);
+
+    if(isDir) {
+      if(TRIVIAL_DIR(dirContent->d_name)) {
+        continue;
+      }
+      std::cout<<dirContent->d_name<<std::endl;
+
+      res.n_dirs++;
+      char* name = dirContent->d_name;
+      closedir(dir);
+      Results dirRes = getDirStats(dirContent->d_name, n);
+      //recursively get the directory stats for any sub-directories
+
+      if(dirRes.largest_file_size > res.largest_file_size) {
+        //if the sub-directory found a larger file, update the results
+        res.largest_file_size = dirRes.largest_file_size;
+        std::string longestPath = dirRes.largest_file_path;
+        longestPath.insert(0, dirContent->d_name);
+        res.largest_file_path = longestPath;
+      }
+
+      res.n_dirs += dirRes.n_dirs;
+      res.n_files += dirRes.n_files;
+      //add the stats found in the sub-directory
+    }
+    else {
+      res.n_files++;
+      //char pathname[4096];
+      //getcwd(pathname, 4096);
+      std::cout<<"file: "<<dirContent->d_name<<std::endl;
+    }
+  }
+
+  closedir(dir);
+
+  /*
+  res.n_dirs = 0;
+  res.n_files = 0;
   //since the top directory is not included in the number of directories,
   //set both the number of files and number of directories to 0 to begin
 
@@ -61,7 +119,7 @@ Results getDirStats(const std::string & dir_name, int n)
 
   while(contents != NULL) {
     char* pathname;
-    pathname = getcwd(pathname, 0);
+//    pathname = getcwd(pathname, 0);
     bool isDir = is_dir(pathname);
     //check if the current directory entry is another directory
     std::cout << "Point 2" << std::endl;
@@ -99,7 +157,6 @@ Results getDirStats(const std::string & dir_name, int n)
     }
     else {
       std::cout << "Point 3" << std::endl;
-
       res.n_files++;
       
       struct stat* buf;
@@ -131,7 +188,7 @@ Results getDirStats(const std::string & dir_name, int n)
   }
 
   closedir(directory);
-
+  */
   /*
   if (! is_dir(dir_name)) return res;
 
