@@ -101,29 +101,35 @@ Results getDirStats(const std::string & dir_name, int n)
     else {
       chdir(dir_name.c_str());
       res.n_files++;
+      //change to the current directory and increment the number of files
 
       char pathname[4096];
       getcwd(pathname, 4096);
+      //get the pathname to the current spot
 
       std::string full_name = pathname;
       full_name.append("/");
       full_name.append(dirContent->d_name);
+      //add the file name to the end of the path
 
       struct stat stats;
       int result = stat(full_name.c_str(), &stats);
       if(result != 0) {
         exit(1);
       }
+      //use stat to get data about the file
 
       chdir("..");
       res.all_files_size += stats.st_size;
+      //return to the previous directory and add to the total file size
 
       if(stats.st_size > res.largest_file_size) {
         res.largest_file_size = stats.st_size;
         std::string long_path = dir_name;
         long_path.append("/");
-	long_path.append(dirContent->d_name);
+        long_path.append(dirContent->d_name);
         res.largest_file_path = long_path;
+        //if the current file is the largest, adjust accordingly
       }
     }
   }
