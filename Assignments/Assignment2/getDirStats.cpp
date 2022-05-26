@@ -16,8 +16,15 @@
 #include <dirent.h>
 #include <vector>
 #include <iostream>
+#include <unordered_map>
 
 #define TRIVIAL_DIR(buf) (((buf)[0] == '.' && (buf)[1] == '\0') || ((buf)[0] == '.' && (buf)[1] == '.' && (buf)[2] == '\0'))
+
+/*
+ * Code for using popen and file to get the file type adapted from 
+ * https://gitlab.com/cpsc457/public/popen-example 
+ */
+std::string getFileType(const std::string name);
 
 static bool is_dir(const std::string & path)
 {
@@ -40,6 +47,7 @@ static bool is_dir(const std::string & path)
 Results getDirStats(const std::string & dir_name, int n)
 {
   Results res;
+  std::unordered_map<std::string, int> f_types;
 
   res.n_dirs = 0;
   res.n_files = 0;
@@ -69,13 +77,9 @@ Results getDirStats(const std::string & dir_name, int n)
     }
 
     struct dirent* dirContent;
-    bool isDir;
 
     while((dirContent = readdir(dir)) != NULL) {
-      isDir = dirContent->d_type == DT_DIR;
-      //check if the current content is a directory
-
-      if(isDir) {
+      if(dirContent->d_type == DT_DIR) {
         if(TRIVIAL_DIR(dirContent->d_name)) {
           continue;
           //if the current item is a trivial directory, skip this iteration
@@ -88,7 +92,7 @@ Results getDirStats(const std::string & dir_name, int n)
         directories.push_back(full_name);
         //increment the number of directories found and add the pathname starting at dir_name to the directories stack
       }
-      else {
+      else if (dirContent->d_type == DT_REG) {
         res.n_files++;
 
         std::string full_name = d_name;
@@ -117,17 +121,52 @@ Results getDirStats(const std::string & dir_name, int n)
 
         std::string filetype = getFileType(full_name);
         //use a helper function to get the file type
+        if(f_types.find(filetype) != f_types.end(0)) {
+          int times = f_types.at(filetype);
+          times++;
+          f_types.insert({filetype, times});
+        }
+        else {
+          f_types.insert({filetype, 1});
+        }
+
       }
     }
 
     closedir(dir);
   }
 
+  
+
   return res;
 }
 
-
 std::string getFileType(const std::string name) {
-  //use popen and file -b to get the file type somehow
-  return NULL;
+  std::string command = "file -b " + name;
+  FILE* fp = popen(command.c_str(), "r");
+  if(fp == nullptr) {
+    std::cout<<"popen() failed. Program terminating."<<std::endl;
+    exit(1);
+  }
+
+  std::string filetype;
+  char buf[4096];
+  char* result = fgets(buf, sizeof(buf), fp);
+  pclose(fp);
+
+  if(result == nullptr) {
+    filetype = "file(1) failed for this file";
+    //if file(1) failed name the file type accordingly
+  }
+  else {
+    int endline = 0;
+    while(buf[endline] != ',' && buf[endline] != '\n' && buf[endline] != 0) {
+      endline++;
+      //increment the endline value until the end of the filetype is found
+    }
+    buf[endline] = '\0'; //add the end to the string
+    filetype = buf;
+  }
+  
+  return filetype;
 }
