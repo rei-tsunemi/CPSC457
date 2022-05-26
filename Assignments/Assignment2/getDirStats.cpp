@@ -17,8 +17,15 @@
 #include <vector>
 #include <iostream>
 #include <unordered_map>
+#include <algorithm>
 
 #define TRIVIAL_DIR(buf) (((buf)[0] == '.' && (buf)[1] == '\0') || ((buf)[0] == '.' && (buf)[1] == '.' && (buf)[2] == '\0'))
+
+struct MyComp {
+    bool operator()(const std::pair<std::string, int>& a, const std::pair<std::string, int>& b) const {
+        return a.second > b.second;
+    }
+};
 
 /*
  * Code for using popen and file to get the file type adapted from 
@@ -121,22 +128,30 @@ Results getDirStats(const std::string & dir_name, int n)
 
         std::string filetype = getFileType(full_name);
         //use a helper function to get the file type
-        if(f_types.find(filetype) != f_types.end(0)) {
-          int times = f_types.at(filetype);
-          times++;
-          f_types.insert({filetype, times});
-        }
-        else {
-          f_types.insert({filetype, 1});
-        }
+
+        f_types[filetype] ++;
 
       }
     }
 
     closedir(dir);
   }
-
   
+  //code for sorting a map adapted from method 1 on https://gitlab.com/cpsc457/public/word-histogram/-/blob/master/main.cpp
+  std::vector<std::pair<std::string, int>> sorted_filetypes;
+  for(auto & i: f_types) {
+    sorted_filetypes.emplace_back(i.first, i.second);
+  }
+
+  if(sorted_filetypes.size() > size_t(n)) {
+    std::partial_sort(sorted_filetypes.begin(), sorted_filetypes.begin() + n, sorted_filetypes.end(), MyComp{});
+    sorted_filetypes.resize(n);
+  }
+  else {
+    std::sort(sorted_filetypes.begin(), sorted_filetypes.end(), MyComp{});
+  }
+
+  res.most_common_types = sorted_filetypes;
 
   return res;
 }
