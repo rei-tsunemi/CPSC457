@@ -114,6 +114,9 @@ Results getDirStats(const std::string & dir_name, int n)
           res.largest_file_path = long_path;
           //if the current file is the largest, adjust accordingly
         }
+
+        std::string filetype = getFileType(full_name);
+        //use a helper function to get the file type
       }
     }
 
@@ -121,4 +124,10 @@ Results getDirStats(const std::string & dir_name, int n)
   }
 
   return res;
+}
+
+
+std::string getFileType(const std::string name) {
+  //use popen and file -b to get the file type somehow
+  return NULL;
 }
