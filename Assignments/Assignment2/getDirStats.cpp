@@ -56,13 +56,12 @@ Results getDirStats(const std::string & dir_name, int n)
 
   while (!directories.empty()) {
     std::string d_name = directories.back();
-    std::cout<<d_name<<std::endl;
     directories.pop_back();
     //take the top entry out of the stack
 
     /* code for opening and reading through a directory adapted from May 17 tutorial code */
     DIR* dir;
-    dir = opendir(dir_name.c_str());
+    dir = opendir(d_name.c_str());
     //open the current directory
     if(!dir) {
       std::cout<<"Unable to open directory"<<std::endl;
@@ -92,11 +91,7 @@ Results getDirStats(const std::string & dir_name, int n)
       else {
         res.n_files++;
 
-        char pathname[4096];
-        getcwd(pathname, 4096);
-        //get the pathname to the current spot
-
-        std::string full_name = pathname;
+        std::string full_name = d_name;
         full_name.append("/");
         full_name.append(dirContent->d_name);
         //add the file name to the end of the path
@@ -104,11 +99,12 @@ Results getDirStats(const std::string & dir_name, int n)
         struct stat stats;
         int result = stat(full_name.c_str(), &stats);
         if(result != 0) {
+          std::cout<<"unable to get file stats"<<std::endl;
           exit(1);
         }
         //use stat to get data about the file
 
-        res.all_files_size += stat.st_size;
+        res.all_files_size += stats.st_size;
 
         if(stats.st_size > res.largest_file_size) {
           res.largest_file_size = stats.st_size;
@@ -120,7 +116,7 @@ Results getDirStats(const std::string & dir_name, int n)
         }
       }
     }
-    
+
     closedir(dir);
   }
 
