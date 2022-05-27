@@ -15,20 +15,26 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <vector>
-#include <iostream>
 #include <unordered_map>
 #include <algorithm>
+#include <iostream> //this was not mentioned as one of the approved APIs but has been included only to provide error messages 
+                    //in the case that something does not run as expected
+
 
 #define MAX_WORD_SIZE 1024
 #define MAX_PATH_SIZE 4096
 #define TRIVIAL_DIR(buf) (((buf)[0] == '.' && (buf)[1] == '\0') || ((buf)[0] == '.' && (buf)[1] == '.' && (buf)[2] == '\0'))
 
+//custom comparator for pairs of strings and integers. When used with std::sort, items are sorted from
+//largest to smallest using the integer value
 struct StrIntComp {
     bool operator()(const std::pair<std::string, int>& a, const std::pair<std::string, int>& b) const {
         return a.second > b.second;
     }
 };
 
+//custom comparator for vectors of strings. When used with std::sort, items are sorted by
+//the size of the vectors from largest to smallest
 struct VectorComp {
     bool operator()(const std::vector<std::string>& a, const std::vector<std::string>& b) const {
         return a.size() > b.size();
@@ -36,22 +42,20 @@ struct VectorComp {
 };
 
 /*
- * Code for using popen and file to get the file type adapted from 
+ * Code for using popen and file to get the file type adapted from main.cpp in
  * https://gitlab.com/cpsc457/public/popen-example 
  */
 std::string getFileType(const std::string name);
 
 /* Code for getting the next word adapted from https://gitlab.com/cpsc457/public/word-histogram
- * lines 19-42 
+ * from main.cpp lines 19-42 
  */
 std::string next_word(FILE* fp);
 
-static bool is_dir(const std::string & path)
-{
-  struct stat buff;
-  if (0 != stat(path.c_str(), & buff)) return false;
-  return S_ISDIR(buff.st_mode);
-}
+/*
+ * Helper function to find the hash of a file and use it to check if two files are duplicates
+ */
+void find_duplicates(const std::string name, std::unordered_map<std::string, std::vector<std::string>> map);
 
 // ======================================================================
 // You need to re-implement this function !!!!
@@ -67,9 +71,9 @@ static bool is_dir(const std::string & path)
 Results getDirStats(const std::string & dir_name, int n)
 {
   Results res;
-  std::unordered_map<std::string, int> f_types;				//map for keeping track of file types
+  std::unordered_map<std::string, int> f_types;			                  	//map for keeping track of file types
   std::unordered_map<std::string, std::vector<std::string>> duplicates;	//map for keeping track of duplicate files
-  std::unordered_map<std::string, int> words;				//map for keeping track of words
+  std::unordered_map<std::string, int> words;				                    //map for keeping track of words
 
   res.n_dirs = 0;
   res.n_files = 0;
@@ -94,7 +98,8 @@ Results getDirStats(const std::string & dir_name, int n)
     dir = opendir(d_name.c_str());
     //open the current directory
     if(!dir) {
-      std::cout<<"Unable to open directory"<<std::endl;
+      //if the directory cannot be opened, print an error message and abort the program.
+      std::cout<<"Unable to open directory. Program Terminating"<<std::endl;
       exit(1);
     }
 
@@ -108,24 +113,21 @@ Results getDirStats(const std::string & dir_name, int n)
         }
 
         res.n_dirs++;
-        std::string full_name = d_name;
-        full_name.append("/");
-        full_name.append(dirContent->d_name);
+        std::string full_name = d_name + "/" + dirContent->d_name;
         directories.push_back(full_name);
         //increment the number of directories found and add the pathname starting at dir_name to the directories stack
       }
       else if (dirContent->d_type == DT_REG) {
+        //otherwise if the item is a regular file, increment the number of files found
         res.n_files++;
 
-        std::string full_name = d_name;
-        full_name.append("/");
-        full_name.append(dirContent->d_name);
+        std::string full_name = d_name + "/" + dirContent->d_name;
         //add the file name to the end of the path
 
         struct stat stats;
         int result = stat(full_name.c_str(), &stats);
         if(result != 0) {
-          std::cout<<"unable to get file stats"<<std::endl;
+          std::cout<<"Unable to get file stats. Program terminating."<<std::endl;
           exit(1);
         }
         //use stat to get data about the file
@@ -134,9 +136,7 @@ Results getDirStats(const std::string & dir_name, int n)
 
         if(stats.st_size > res.largest_file_size) {
           res.largest_file_size = stats.st_size;
-          std::string long_path = d_name;
-          long_path.append("/");
-          long_path.append(dirContent->d_name);
+          std::string long_path = d_name + "/" + dirContent->d_name;
           res.largest_file_path = long_path;
           //if the current file is the largest, adjust accordingly
         }
@@ -145,21 +145,9 @@ Results getDirStats(const std::string & dir_name, int n)
         //use a helper function to get the file type
 
         f_types[filetype] ++;
+        //increment the number of files of the found file type
 
-        std::string hash = sha256_from_file(full_name);
-        //get the hash for the file
-
-        auto found_hash = duplicates.find(hash);
-        if(found_hash == duplicates.end()) {
-          //if the file is not already in the map, create a vector and put the entry in the map
-          std::vector<std::string> temp;
-          temp.emplace_back(full_name);
-          duplicates.insert({hash, temp});
-        }
-        else {
-          //otherwise add the filename to the duplicate files already in the map
-          (found_hash->second).emplace_back(full_name);
-        }
+        find_duplicates(full_name, duplicates);
 
         FILE* fp = fopen(full_name.c_str(), "r");
         if(fp == nullptr) {
@@ -207,7 +195,8 @@ Results getDirStats(const std::string & dir_name, int n)
     }
   }
 
-  std::sort(duplicate_files.begin(), duplicate_files.end(), VectorComp{});    //sort the duplicate files vector by the size of each vector inside of it
+  std::sort(duplicate_files.begin(), duplicate_files.end(), VectorComp{});    
+  //sort the duplicate files vector by the size of each vector inside of it
   res.duplicate_files = duplicate_files;
 
 
@@ -224,10 +213,28 @@ Results getDirStats(const std::string & dir_name, int n)
   }
   else {
     std::sort(common_words.begin(), common_words.end(), StrIntComp{});
+    //otherwise sort the whole vector
   }
   res.most_common_words = common_words;
 
   return res;
+}
+
+void find_duplicates(std::string name, std::unordered_map<std::string, std::vector<std::string>> map) {
+  std::string hash = sha256_from_file(name);
+  //get the hash for the file
+
+  auto found_hash = map.find(hash);
+  if(found_hash == map.end()) {
+    //if the file is not already in the map, create a vector and put the entry in the map
+    std::vector<std::string> temp;
+    temp.emplace_back(name);
+    duplicates.insert({hash, temp});
+  }
+  else {
+    //otherwise add the filename to the duplicate files already in the map
+    (found_hash->second).emplace_back(name);
+  }
 }
 
 std::string next_word(FILE* fp) {
@@ -257,19 +264,25 @@ std::string next_word(FILE* fp) {
 std::string getFileType(const std::string name) {
   std::string command = "file -b " + name;
   FILE* fp = popen(command.c_str(), "r");
+  //use popen to call the "file -b" command
   if(fp == nullptr) {
     std::cout<<"popen() failed. Program terminating."<<std::endl;
     exit(1);
   }
 
-  char res[4096], c;
+  char res[MAX_PATH_SIZE], c;
   int i = 0;
   while((c = fgetc(fp)) != EOF) {
+    if(i >= MAX_PATH_SIZE) {
+      std::cout<<"Path is longer than maximum path length of "<<MAX_PATH_SIZE<<" characters. Program terminating"<<std::endl;
+    }
     res[i] = c;
     i++;
+    //add each character of the path to the result C-string
   }
   res[i] = '\0';
   pclose(fp);
+  //add the null terminator to the result and close the file
 
   std::string retVal;
   if(res[0] == '\0') {
