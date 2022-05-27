@@ -164,24 +164,29 @@ std::string getFileType(const std::string name) {
     exit(1);
   }
 
-  std::string filetype;
-  char buf[4096];
-  char* result = fgets(buf, sizeof(buf), fp);
+  char res[4096], c;
+  int i = 0;
+  while((c = fgetc(fp)) != EOF) {
+    res[i] = c;
+    i++;
+  }
+  res[i] = '\0';
   pclose(fp);
 
-  if(result == nullptr) {
-    filetype = "file(1) failed for this file";
+  std::string retVal;
+  if(res[0] == '\0') {
+    retVal = "file(1) failed for this file";
     //if file(1) failed name the file type accordingly
   }
   else {
-    int endline = 0;
-    while(buf[endline] != ',' && buf[endline] != '\n' && buf[endline] != 0) {
-      endline++;
+    int end = 0;
+    while(res[end] != ',' && res[end] != '\n' && res[end] != 0) {
+      end++;
       //increment the endline value until the end of the filetype is found
     }
-    buf[endline] = '\0'; //add the end to the string
-    filetype = buf;
+    res[end] = '\0'; //add the end to the string
+    retVal = res;
   }
-  
-  return filetype;
+
+  return retVal;
 }
