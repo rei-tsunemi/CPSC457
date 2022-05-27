@@ -19,11 +19,19 @@
 #include <unordered_map>
 #include <algorithm>
 
+#define MAX_WORD_SIZE 1024
+#define MAX_PATH_SIZE 4096
 #define TRIVIAL_DIR(buf) (((buf)[0] == '.' && (buf)[1] == '\0') || ((buf)[0] == '.' && (buf)[1] == '.' && (buf)[2] == '\0'))
 
-struct MyComp {
+struct StrIntComp {
     bool operator()(const std::pair<std::string, int>& a, const std::pair<std::string, int>& b) const {
         return a.second > b.second;
+    }
+};
+
+struct VectorComp {
+    bool operator()(const std::vector<std::string>& a, const std::vector<std::string>& b) const {
+        return a.size() > b.size();
     }
 };
 
@@ -32,6 +40,11 @@ struct MyComp {
  * https://gitlab.com/cpsc457/public/popen-example 
  */
 std::string getFileType(const std::string name);
+
+/* Code for getting the next word adapted from https://gitlab.com/cpsc457/public/word-histogram
+ * lines 19-42 
+ */
+std::string next_word(FILE* fp);
 
 static bool is_dir(const std::string & path)
 {
@@ -54,7 +67,9 @@ static bool is_dir(const std::string & path)
 Results getDirStats(const std::string & dir_name, int n)
 {
   Results res;
-  std::unordered_map<std::string, int> f_types;
+  std::unordered_map<std::string, int> f_types;				//map for keeping track of file types
+  std::unordered_map<std::string, std::vector<std::string>> duplicates;	//map for keeping track of duplicate files
+  std::unordered_map<std::string, int> words;				//map for keeping track of words
 
   res.n_dirs = 0;
   res.n_files = 0;
@@ -131,29 +146,112 @@ Results getDirStats(const std::string & dir_name, int n)
 
         f_types[filetype] ++;
 
+        std::string hash = sha256_from_file(full_name);
+        //get the hash for the file
+
+        auto found_hash = duplicates.find(hash);
+        if(found_hash == duplicates.end()) {
+          //if the file is not already in the map, create a vector and put the entry in the map
+          std::vector<std::string> temp;
+          temp.emplace_back(full_name);
+          duplicates.insert({hash, temp});
+        }
+        else {
+          //otherwise add the filename to the duplicate files already in the map
+          (found_hash->second).emplace_back(full_name);
+        }
+
+        FILE* fp = fopen(full_name.c_str(), "r");
+        if(fp == nullptr) {
+          std::cout<<"Unable to open file to read words. Program terminating"<<std::endl;
+          exit(1);
+        }
+
+        while(1) {
+          auto w = next_word(fp);
+          if(w.size() == 0) break;
+          if(w.size() >= 3) {
+            words[w]++;
+          }
+        }
       }
     }
 
     closedir(dir);
   }
   
-  //code for sorting a map adapted from method 1 on https://gitlab.com/cpsc457/public/word-histogram/-/blob/master/main.cpp
+  //code for sorting a map adapted from method 1 on https://gitlab.com/cpsc457/public/word-histogram
   std::vector<std::pair<std::string, int>> sorted_filetypes;
   for(auto & i: f_types) {
     sorted_filetypes.emplace_back(i.first, i.second);
+    //add all the filetypes to the final data structure
   }
 
   if(sorted_filetypes.size() > size_t(n)) {
-    std::partial_sort(sorted_filetypes.begin(), sorted_filetypes.begin() + n, sorted_filetypes.end(), MyComp{});
+    //if there are more than n file types, sort the top n filetypes and trim the size of the vector
+    std::partial_sort(sorted_filetypes.begin(), sorted_filetypes.begin() + n, sorted_filetypes.end(), StrIntComp{});
     sorted_filetypes.resize(n);
   }
   else {
-    std::sort(sorted_filetypes.begin(), sorted_filetypes.end(), MyComp{});
+    //otherwise sort the whole vector
+    std::sort(sorted_filetypes.begin(), sorted_filetypes.end(), StrIntComp{});
   }
-
   res.most_common_types = sorted_filetypes;
 
+
+  std::vector<std::vector<std::string>> duplicate_files;
+  for(auto& i: duplicates) {
+    if((i.second).size() > 1) {
+      duplicate_files.emplace_back(i.second);
+      //if there is more than 1 file with a given hash, add it to the final vector of vectors
+    }
+  }
+
+  std::sort(duplicate_files.begin(), duplicate_files.end(), VectorComp{});    //sort the duplicate files vector by the size of each vector inside of it
+  res.duplicate_files = duplicate_files;
+
+
+  std::vector<std::pair<std::string, int>> common_words;
+  for(auto& i: words) {
+    common_words.emplace_back(i.first, i.second);
+    //add all the common words to the vector
+  }
+
+  if(common_words.size() > size_t(n)) {
+    std::partial_sort(common_words.begin(), common_words.begin() + n, common_words.end(), StrIntComp{});
+    common_words.resize(n);
+    //if there are more than n common words, only sort and take the top n
+  }
+  else {
+    std::sort(common_words.begin(), common_words.end(), StrIntComp{});
+  }
+  res.most_common_words = common_words;
+
   return res;
+}
+
+std::string next_word(FILE* fp) {
+  std::string word;
+
+  while(1) {
+    char c = fgetc(fp);
+    if(c == EOF) break;
+    c = tolower(c);
+    if(! isalpha(c)) {
+      if(word.size() == 0) {
+        continue;
+      }
+      else break;
+    }
+    else {
+      if(word.size() >= MAX_WORD_SIZE) {
+        std::cout<<"input exceeded max word size of "<<MAX_WORD_SIZE<<" characters. Program terminating."<<std::endl;
+        exit(1);
+      }
+      word.push_back(c);
+    }
+  }
+  return word;
 }
 
 std::string getFileType(const std::string name) {
