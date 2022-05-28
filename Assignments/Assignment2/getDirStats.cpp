@@ -55,7 +55,7 @@ std::string next_word(FILE* fp);
 /*
  * Helper function to find the hash of a file and use it to check if two files are duplicates
  */
-void find_duplicates(const std::string name, std::unordered_map<std::string, std::vector<std::string>> map);
+void find_duplicates(const std::string name, std::unordered_map<std::string, std::vector<std::string>>& map);
 
 // ======================================================================
 // You need to re-implement this function !!!!
@@ -81,7 +81,7 @@ Results getDirStats(const std::string & dir_name, int n)
 
   res.largest_file_path = "";
   res.all_files_size = 0;
-  res.largest_file_size = 0;
+  res.largest_file_size = -1;
   //also initilalize the values for other Results values
 
   std::vector<std::string> directories;
@@ -220,7 +220,7 @@ Results getDirStats(const std::string & dir_name, int n)
   return res;
 }
 
-void find_duplicates(std::string name, std::unordered_map<std::string, std::vector<std::string>> map) {
+void find_duplicates(std::string name, std::unordered_map<std::string, std::vector<std::string>>& map) {
   std::string hash = sha256_from_file(name);
   //get the hash for the file
 
@@ -229,7 +229,7 @@ void find_duplicates(std::string name, std::unordered_map<std::string, std::vect
     //if the file is not already in the map, create a vector and put the entry in the map
     std::vector<std::string> temp;
     temp.emplace_back(name);
-    duplicates.insert({hash, temp});
+    map.insert({hash, temp});
   }
   else {
     //otherwise add the filename to the duplicate files already in the map
