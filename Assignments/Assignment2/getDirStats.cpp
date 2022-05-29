@@ -14,10 +14,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <dirent.h>
-#include <vector>
 #include <unordered_map>
 #include <algorithm>
-#include <iostream> //this was not mentioned as one of the approved APIs but has been included only to provide error messages 
+#include <iostream> //this was not mentioned as one of the approved APIs but has been included only to provide error messages
                     //in the case that something does not run as expected
 
 
@@ -43,12 +42,12 @@ struct VectorComp {
 
 /*
  * Code for using popen and file to get the file type adapted from main.cpp in
- * https://gitlab.com/cpsc457/public/popen-example 
+ * https://gitlab.com/cpsc457/public/popen-example
  */
 std::string getFileType(const std::string name);
 
 /* Code for getting the next word adapted from https://gitlab.com/cpsc457/public/word-histogram
- * from main.cpp lines 19-42 
+ * from main.cpp lines 19-42
  */
 std::string next_word(FILE* fp);
 
@@ -71,22 +70,30 @@ void find_duplicates(const std::string name, std::unordered_map<std::string, std
 Results getDirStats(const std::string & dir_name, int n)
 {
   Results res;
-  std::unordered_map<std::string, int> f_types;			                  	//map for keeping track of file types
+  std::unordered_map<std::string, int> f_types;			        //map for keeping track of file types
   std::unordered_map<std::string, std::vector<std::string>> duplicates;	//map for keeping track of duplicate files
-  std::unordered_map<std::string, int> words;				                    //map for keeping track of words
+  std::unordered_map<std::string, int> words;				//map for keeping track of words
 
   res.n_dirs = 0;
   res.n_files = 0;
-  //set the number of files and directories to 0 to start
-
   res.largest_file_path = "";
   res.all_files_size = 0;
   res.largest_file_size = -1;
-  //also initilalize the values for other Results values
+  //initialize all values in the Results struct
 
   std::vector<std::string> directories;
-  directories.push_back(dir_name);
-  //create a stack for traversing through the directories and push the starting dir_name to it
+
+  if(dir_name.back() == '/') {
+    std::string temp = dir_name;
+    temp.pop_back();
+    directories.push_back(temp);
+    //if the directory name entered through the command line inlcudes the / at the end, create a temporary
+    //variable to remove it and add that name to the stack
+  }
+  else {
+    directories.push_back(dir_name);
+    //otherwise push the name as entered to the stack
+  }
 
   while (!directories.empty()) {
     std::string d_name = directories.back();
@@ -106,16 +113,12 @@ Results getDirStats(const std::string & dir_name, int n)
     struct dirent* dirContent;
 
     while((dirContent = readdir(dir)) != NULL) {
-      if(dirContent->d_type == DT_DIR) {
-        if(TRIVIAL_DIR(dirContent->d_name)) {
-          continue;
-          //if the current item is a trivial directory, skip this iteration
-        }
-
+      if((dirContent->d_type == DT_DIR) && !TRIVIAL_DIR(dirContent->d_name)) {
+        //if the directory content is another directory AND it is not a trivial directory, adjust the Result values
         res.n_dirs++;
         std::string full_name = d_name + "/" + dirContent->d_name;
         directories.push_back(full_name);
-        //increment the number of directories found and add the pathname starting at dir_name to the directories stack
+        //add the pathname starting at dir_name to the directories stack
       }
       else if (dirContent->d_type == DT_REG) {
         //otherwise if the item is a regular file, increment the number of files found
@@ -138,7 +141,7 @@ Results getDirStats(const std::string & dir_name, int n)
           res.largest_file_size = stats.st_size;
           std::string long_path = d_name + "/" + dirContent->d_name;
           res.largest_file_path = long_path;
-          //if the current file is the largest, adjust accordingly
+          //if the current file is the largest, adjust the results accordingly
         }
 
         std::string filetype = getFileType(full_name);
@@ -148,6 +151,7 @@ Results getDirStats(const std::string & dir_name, int n)
         //increment the number of files of the found file type
 
         find_duplicates(full_name, duplicates);
+        //use a helper function to check if the file has any duplicates
 
         FILE* fp = fopen(full_name.c_str(), "r");
         if(fp == nullptr) {
@@ -167,7 +171,7 @@ Results getDirStats(const std::string & dir_name, int n)
 
     closedir(dir);
   }
-  
+
   //code for sorting a map adapted from method 1 on https://gitlab.com/cpsc457/public/word-histogram
   std::vector<std::pair<std::string, int>> sorted_filetypes;
   for(auto & i: f_types) {
@@ -195,11 +199,12 @@ Results getDirStats(const std::string & dir_name, int n)
     }
   }
 
-  std::sort(duplicate_files.begin(), duplicate_files.end(), VectorComp{});    
+  std::sort(duplicate_files.begin(), duplicate_files.end(), VectorComp{});
   //sort the duplicate files vector by the size of each vector inside of it
   res.duplicate_files = duplicate_files;
 
 
+  //sort the most common words using the same method as sorting filetypes above
   std::vector<std::pair<std::string, int>> common_words;
   for(auto& i: words) {
     common_words.emplace_back(i.first, i.second);
@@ -244,18 +249,22 @@ std::string next_word(FILE* fp) {
     char c = fgetc(fp);
     if(c == EOF) break;
     c = tolower(c);
+    //read one character from the file and convert it to a lowercase letter
     if(! isalpha(c)) {
       if(word.size() == 0) {
         continue;
+        //if the current character is not a letter, but ther word size is 0, ignore it and continue
       }
       else break;
+      //otherwise break out of the loop
     }
     else {
       if(word.size() >= MAX_WORD_SIZE) {
-        std::cout<<"input exceeded max word size of "<<MAX_WORD_SIZE<<" characters. Program terminating."<<std::endl;
+        std::cout<<"Input exceeded max word size of "<<MAX_WORD_SIZE<<" characters. Program terminating."<<std::endl;
         exit(1);
       }
       word.push_back(c);
+      //add the character to the end of the word
     }
   }
   return word;
@@ -276,13 +285,12 @@ std::string getFileType(const std::string name) {
     if(i >= MAX_PATH_SIZE) {
       std::cout<<"Path is longer than maximum path length of "<<MAX_PATH_SIZE<<" characters. Program terminating"<<std::endl;
     }
-    res[i] = c;
-    i++;
+    res[i++] = c;
     //add each character of the path to the result C-string
   }
   res[i] = '\0';
   pclose(fp);
-  //add the null terminator to the result and close the file
+  //add the null terminator to the result
 
   std::string retVal;
   if(res[0] == '\0') {
