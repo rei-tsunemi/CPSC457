@@ -19,11 +19,11 @@
 
 uint64_t count_pixels(int r, int n_threads)
 {
-  double rsq = double(r) * r;
-  uint64_t count = 0;
-  for( double x = 1 ; x <= r ; x ++)
-    for( double y = 0 ; y <= r ; y ++)
-      if( x*x + y*y <= rsq) count ++;
-  return count * 4 + 1;
+	double rsq = double(r) * r;
+	uint64_t count = 0;
+	for( double x = 1 ; x <= r ; x ++)
+		for( double y = 0 ; y <= r ; y ++)
+		if( x*x + y*y <= rsq) count ++;
+	return count * 4 + 1;
 }
 
