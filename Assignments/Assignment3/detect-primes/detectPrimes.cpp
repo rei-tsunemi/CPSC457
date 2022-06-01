@@ -37,18 +37,18 @@ class simple_barrier {
 	bool wait()
 	{
 		if (count_ == 1) return true;
-	 	std::unique_lock<std::mutex> lk(m_);
-	 	if (n_remaining_ == 1) {
+		std::unique_lock<std::mutex> lk(m_);
+		if (n_remaining_ == 1) {
 			coin_ = ! coin_;
 			n_remaining_ = count_;
 			cv_.notify_all();
 			return true;
-	 	}
-	 	auto old_coin = coin_;
-	 	n_remaining_--;
-	 	cv_.wait(lk, [&]() { return old_coin != coin_; });
-	 	return false;
-  	}
+		}
+		auto old_coin = coin_;
+		n_remaining_--;
+		cv_.wait(lk, [&]() { return old_coin != coin_; });
+		return false;
+	}
 };
 
 
@@ -58,21 +58,21 @@ class simple_barrier {
 // re-write the code in this function to make it multithreaded.
 static bool is_prime(int64_t n)
 {
-  // handle trivial cases
-  if (n < 2) return false;
-  if (n <= 3) return true; // 2 and 3 are primes
-  if (n % 2 == 0) return false; // handle multiples of 2
-  if (n % 3 == 0) return false; // handle multiples of 3
-  // try to divide n by every number 5 .. sqrt(n)
-  int64_t i = 5;
-  int64_t max = sqrt(n);
-  while (i <= max) {
-	 if (n % i == 0) return false;
-	 if (n % (i + 2) == 0) return false;
-	 i += 6;
-  }
-  // didn't find any divisors, so it must be a prime
-  return true;
+	// handle trivial cases
+	if (n < 2) return false;
+	if (n <= 3) return true; // 2 and 3 are primes
+	if (n % 2 == 0) return false; // handle multiples of 2
+	if (n % 3 == 0) return false; // handle multiples of 3
+	// try to divide n by every number 5 .. sqrt(n)
+	int64_t i = 5;
+	int64_t max = sqrt(n);
+	while (i <= max) {
+		if (n % i == 0) return false;
+		if (n % (i + 2) == 0) return false;
+		i += 6;
+	}
+	// didn't find any divisors, so it must be a prime
+	return true;
 }
 
 // This function takes a list of numbers in nums[] and returns only numbers that
@@ -87,9 +87,9 @@ static bool is_prime(int64_t n)
 std::vector<int64_t>
 detect_primes(const std::vector<int64_t> & nums, int n_threads)
 {
-  std::vector<int64_t> result;
-  for (auto num : nums) {
-	 if (is_prime(num)) result.push_back(num);
-  }
-  return result;
+	std::vector<int64_t> result;
+	for (auto num : nums) {
+		if (is_prime(num)) result.push_back(num);
+	}
+	return result;
 }
