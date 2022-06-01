@@ -20,7 +20,6 @@
 
 #include "calcpi.h"
 #include <pthread.h>
-#include <iostream>
 
 void* parallelWork(void* thread_task);
 
