@@ -15,6 +15,10 @@
 #include <cstdlib>
 #include <mutex>
 #include <condition_variable>
+#include <pthread.h>
+#include <iostream> //REMOVE LATER
+
+void* thread_start(void* thread_task);
 
 // C++ barrier class (from lecture notes).
 // -----------------------------------------------------------------------------
@@ -51,6 +55,16 @@ class simple_barrier {
 	}
 };
 
+struct Task {
+	std::vector<int64_t> nums;
+	std::vector<int64_t> primes;
+
+	Task(std::vector<int64_t> n) {
+		nums = n;
+	}
+};
+
+pthread_mutex_t m;
 
 // returns true if n is prime, otherwise returns false
 // -----------------------------------------------------------------------------
@@ -88,8 +102,57 @@ std::vector<int64_t>
 detect_primes(const std::vector<int64_t> & nums, int n_threads)
 {
 	std::vector<int64_t> result;
-	for (auto num : nums) {
+	pthread_t threads[n_threads];
+	struct Task task(nums);
+
+	for(int i = 0; i < n_threads; i++) {
+		pthread_create(&threads[i], NULL, thread_start, &task);
+		//create all of the threads and send them to start work in the parallel work function
+		//the input argument is the corresponding Task entry
+	}
+
+	for(int i = 0; i < n_threads; i++) {
+		pthread_join(threads[i], NULL);
+		//wait for all threads to complete their work and destroy the threads
+	}
+
+/*	for (auto num : nums) {
 		if (is_prime(num)) result.push_back(num);
 	}
-	return result;
+*/
+	return task.primes;
+}
+
+void* thread_start(void* thread_task) {
+	struct Task* task = (struct Task *) thread_task;
+
+	while(1) {
+		if(task->nums.empty()) {
+			break;
+			//if there is nothing left in the number vector, break out of the loop
+		}
+
+		pthread_mutex_lock(&m);
+		//lock the mutex so that only one thread can access the number vector elements at a time
+		if(task->nums.empty()) {
+			//check again if the vector is empty. if it is, unlock the mutex and leave the loop
+			pthread_mutex_unlock(&m);
+			break;
+		}
+
+		//pop an element from the number vector
+		int64_t n = task->nums.back();
+		task->nums.pop_back();
+		pthread_mutex_unlock(&m);
+
+		if(is_prime(n)) {
+			//if the number is prime, lock the mutex again to insert it into the result vector
+			pthread_mutex_lock(&m);
+			task->primes.push_back(n);
+			pthread_mutex_unlock(&m);
+		}
+	}
+
+	//exit from the thread
+	pthread_exit(0);
 }
