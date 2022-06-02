@@ -29,45 +29,26 @@ struct Task {
 	double rsq;
 	uint64_t partial_sum;
 
-	Task() {
-		partial_sum = 0;
-	};
+	// Task() {
+	// 	partial_sum = 0;
+	// };
 };
 
 uint64_t count_pixels(int r, int n_threads)
 {
-	int size_per_thread;
-	int remainder = r % n_threads;
-	if(remainder != 0) {
-		size_per_thread = r / (n_threads - 1);
-		//if r cannot be divided evenly into n_threads parts, use n_threads-1 threads to divide the work evenly
-		//and use the last thread to handle the remainder
-	}
-	else {
-		size_per_thread = r / n_threads;
-		//otherwise divide r evenly into n_threads parts
-	}
+	int size_per_thread = r / n_threads;
 
 	struct Task tasks[n_threads];
 	pthread_t threads[n_threads];
 	double rsq = double(r) * r;
 
-	if(n_threads == 1) {
-		tasks[0].start = 0;
-		tasks[0].end = r;
-		tasks[0].r = r;
-		tasks[0].rsq = rsq;
-//		tasks[0].partial_sum = 0;
-		//if there is only 1 thread, initialize all values for the task
-	}
-	else if(size_per_thread == 0) {
+	if(size_per_thread == 0) {
 		//if r < n_threads, give r threads work and the remaining threads will do nothing
 		for(int i = 0; i < r; i++) {
 			tasks[i].start = i;
 			tasks[i].end = i + 1;
 			tasks[i].r = r;
 			tasks[i].rsq = rsq;
-//			tasks[i].partial_sum = 0;
 			//divide the work among the needed threads
 		}
 		for(int i = r; i < n_threads; i++) {
@@ -75,7 +56,6 @@ uint64_t count_pixels(int r, int n_threads)
 			tasks[i].end = 0;
 			tasks[i].r = 0;
 			tasks[i].rsq = 0;
-//			tasks[i].partial_sum = 0;
 			//for all unneeded threads, set the start and end values to 0
 		}
 	}
@@ -86,17 +66,11 @@ uint64_t count_pixels(int r, int n_threads)
 			tasks[i].end = (i + 1) * size_per_thread;
 			tasks[i].r = r;
 			tasks[i].rsq = rsq;
-//			tasks[i].partial_sum = 0;
 			//initialize all Task values for each thread
 		}
-
-		if(tasks[n_threads - 1].end != r) {
-			tasks[n_threads - 1].end = r;
-			//if r does not divide into n_threads evenly, adjust the final Task to have the correct end value
-		}
+		tasks[n_threads - 1].end = r;
+		//adjust the end value of the last thread to handle the leftover area
 	}
-
-	uint64_t result = 0;
 
 	for(int i = 0; i < n_threads; i++) {
 		pthread_create(&threads[i], NULL, parallelWork, &tasks[i]);
@@ -109,6 +83,8 @@ uint64_t count_pixels(int r, int n_threads)
 		//wait for all threads to complete their work and destroy the threads
 	}
 
+	uint64_t result = 0;
+
 	for(int i = 0; i < n_threads; i++) {
 		result += tasks[i].partial_sum;
 		//sum up the results of each thread
@@ -118,18 +94,25 @@ uint64_t count_pixels(int r, int n_threads)
 }
 
 void* parallelWork(void* thread_task) {
-	Task* task = (Task*) thread_task;
+	struct Task* task = (struct Task*) thread_task;
 	int r = task->r;
 	double rsq = task->rsq;
 	//convert the input arguments into their correct types
 
-	for(double x = task->start + 1; x <= task->end; x++) {
+	int sum = 0, end = task->end;
+	//use temporary local variables for the sum and end since continuously accessing\
+	//them through the Task pointer is expensive
+
+	for(double x = task->start + 1; x <= end; x++) {
 		for(double y = 0; y <= r; y++) {
 			if(x*x + y*y <= rsq)
-				task->partial_sum++;
+				sum++;
 		}
 	}
 	//sum up the area using a similar loop to the single-threaded version
+	
+	task->partial_sum = sum;
+	//put the sum into the partial sum variable
 
 	pthread_exit(0);
 	//return 0
