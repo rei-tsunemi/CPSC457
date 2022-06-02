@@ -48,7 +48,7 @@ uint64_t count_pixels(int r, int n_threads)
 		//otherwise divide r evenly into n_threads parts
 	}
 
-	Task tasks[n_threads];
+	struct Task tasks[n_threads];
 	pthread_t threads[n_threads];
 	double rsq = double(r) * r;
 
@@ -122,7 +122,6 @@ void* parallelWork(void* thread_task) {
 	int r = task->r;
 	double rsq = task->rsq;
 	//convert the input arguments into their correct types
-
 
 	for(double x = task->start + 1; x <= task->end; x++) {
 		for(double y = 0; y <= r; y++) {
