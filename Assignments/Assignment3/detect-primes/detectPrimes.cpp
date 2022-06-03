@@ -54,6 +54,7 @@ static bool is_prime(int64_t n, struct ThreadData d) {
 
 		i += (d.n_threads * 6);
 		if(cancellation.load()) {
+			//if another thread has already found that the number is not prime, return false
 			return false;
 		}
 	}
@@ -92,8 +93,8 @@ void* thread_start(void* t) {
 		}
 
 		//SERIAL SECTION
+		r = pthread_barrier_wait(&barrier);
 		if(r == PTHREAD_BARRIER_SERIAL_THREAD) {
-			//reuse the thread from the last serial section for this one to avoid using extra barriers
 			bool res = true;
 			for(int i = 0; i < data.n_threads; i++) {
 				if(!results[i]) {
@@ -107,6 +108,7 @@ void* thread_start(void* t) {
 				//if the number was prime, add the number to the result vector
 			}
 		}
+		pthread_barrier_wait(&barrier);
 	}
 }
 
