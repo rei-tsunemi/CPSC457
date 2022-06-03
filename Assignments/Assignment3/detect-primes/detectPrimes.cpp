@@ -17,44 +17,8 @@
 #include <condition_variable>
 #include <atomic>
 #include <pthread.h>
-#include <iostream>	//REMOVE LATER
 
 #define MAX_THREADS 256
-
-// C++ barrier class (from lecture notes).
-// -----------------------------------------------------------------------------
-// You do not have to use it in your implementation. If you don't use it, you
-// may delete it.
-class simple_barrier {
-	std::mutex m_;
-	std::condition_variable cv_;
-	int n_remaining_, count_;
-	bool coin_;
-
-	public:
-	simple_barrier(int count = 1) { init(count); }
-	void init(int count)
-	{
-		count_ = count;
-		n_remaining_ = count_;
-   	coin_ = false;
-	}
-	bool wait()
-	{
-		if (count_ == 1) return true;
-		std::unique_lock<std::mutex> lk(m_);
-		if (n_remaining_ == 1) {
-		coin_ = ! coin_;
-		n_remaining_ = count_;
-		cv_.notify_all();
-		return true;
-		}
-		auto old_coin = coin_;
-		n_remaining_--;
-		cv_.wait(lk, [&]() { return old_coin != coin_; });
-		return false;
-	}
-};
 
 struct ThreadData {
 	int start, n_threads, thread_num;
@@ -73,31 +37,7 @@ pthread_barrier_t barrier;
 std::vector<int64_t> primes;
 int64_t n;
 bool results[MAX_THREADS];
-
-/*
-// returns true if n is prime, otherwise returns false
-// -----------------------------------------------------------------------------
-// to get full credit for this assignment, you will need to adjust or even
-// re-write the code in this function to make it multithreaded.
-static bool is_prime(int64_t n)
-{
-	// handle trivial cases
-	if (n < 2) return false;
-	if (n <= 3) return true; // 2 and 3 are primes
-	if (n % 2 == 0) return false; // handle multiples of 2
-	if (n % 3 == 0) return false; // handle multiples of 3
-	// try to divide n by every number 5 .. sqrt(n)
-	int64_t i = 5;
-	int64_t max = sqrt(n);
-	while (i <= max) {
-   	if (n % i == 0) return false;
-   	if (n % (i + 2) == 0) return false;
-   	i += 6;
-	}
-	// didn't find any divisors, so it must be a prime
-	return true;
-}
-*/
+std::atomic<bool> cancellation;
 
 static bool is_prime(int64_t n, struct ThreadData d) {
 	if(n < 2) return false;
@@ -113,6 +53,9 @@ static bool is_prime(int64_t n, struct ThreadData d) {
 		if(n % (i + 2) == 0) return false;
 
 		i += (d.n_threads * 6);
+		if(cancellation.load()) {
+			return false;
+		}
 	}
 	return true;
 }
@@ -120,15 +63,18 @@ static bool is_prime(int64_t n, struct ThreadData d) {
 void* thread_start(void* t) {
 	struct ThreadData data = *(struct ThreadData*) t;
 	while(1) {
+		cancellation.store(false);
 		int r = pthread_barrier_wait(&barrier);
 		if(r == PTHREAD_BARRIER_SERIAL_THREAD) {
 			//SERIAL SECTION
 			if(data.nums->empty()) {
 				finished = true;
+				//if the vector of numbers is empty, set the finished flag to true
 			}
 			else {
 				n = data.nums->back();
 				data.nums->pop_back();
+				//otherwise pop the number out of the vector and set the global variable to its value
 			}
 		}
 		pthread_barrier_wait(&barrier);
@@ -139,24 +85,29 @@ void* thread_start(void* t) {
 		}
 
 		results[data.thread_num] = is_prime(n, data);
+		//check if the number is prime
 
-		r = pthread_barrier_wait(&barrier);
+		if(!results[data.thread_num]) {
+			cancellation.store(true);
+		}
+
+		//SERIAL SECTION
 		if(r == PTHREAD_BARRIER_SERIAL_THREAD) {
+			//reuse the thread from the last serial section for this one to avoid using extra barriers
 			bool res = true;
 			for(int i = 0; i < data.n_threads; i++) {
 				if(!results[i]) {
 					res = false;
 					break;
+					//if any of the threads found that the number was not prime, set the result to false and break out of the loop
 				}
 			}
 			if(res) {
 				primes.push_back(n);
+				//if the number was prime, add the number to the result vector
 			}
 		}
-		pthread_barrier_wait(&barrier);
 	}
-
-	pthread_exit(0);
 }
 
 // This function takes a list of numbers in nums[] and returns only numbers that
