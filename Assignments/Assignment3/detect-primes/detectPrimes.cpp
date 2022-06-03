@@ -17,6 +17,9 @@
 #include <condition_variable>
 #include <atomic>
 #include <pthread.h>
+#include <iostream>	//REMOVE LATER
+
+#define MAX_THREADS 256
 
 // C++ barrier class (from lecture notes).
 // -----------------------------------------------------------------------------
@@ -53,24 +56,30 @@ class simple_barrier {
 	}
 };
 
-struct Task {
-	std::vector<int64_t> nums;
-	std::vector<int64_t> primes;
-	pthread_barrier_t* barrier;
+struct ThreadData {
+	int start, n_threads, thread_num;
+	std::vector<int64_t>* nums;
 
-	Task(std::vector<int64_t> n, pthread_barrier_t* b) {
-		nums = n;
-		barrier = b;
+	void set(int s, int n_thr, int thread_no, std::vector<int64_t>* n_vec) {
+		start = s;
+		n_threads = n_thr;
+		nums = n_vec;
+		thread_num = thread_no;
 	}
 };
 
-std::atomic<bool> finished;
+bool finished;
+pthread_barrier_t barrier;
+std::vector<int64_t> primes;
+int64_t n;
+bool results[MAX_THREADS];
 
+/*
 // returns true if n is prime, otherwise returns false
 // -----------------------------------------------------------------------------
 // to get full credit for this assignment, you will need to adjust or even
 // re-write the code in this function to make it multithreaded.
-static bool is_prime(int64_t n, pthread_t* threads)
+static bool is_prime(int64_t n)
 {
 	// handle trivial cases
 	if (n < 2) return false;
@@ -88,18 +97,69 @@ static bool is_prime(int64_t n, pthread_t* threads)
 	// didn't find any divisors, so it must be a prime
 	return true;
 }
+*/
 
-void* thread_start(void* t) {
-	struct Task* task = (struct Task*) t;
-	while(1) {
-		if(pthread_barrier_wait(task->barrier) != 0) {
-			//do something
-			break;
-		}
+static bool is_prime(int64_t n, struct ThreadData d) {
+	if(n < 2) return false;
+	if (n <= 3) return true;
+	if(n % 2 == 0) return false;
+	if(n % 3 == 0) return false;
+
+	int64_t i = d.start;
+	int64_t max = sqrt(n);
+
+	while(i <= max) {
+		if(n % i == 0) return false;
+		if(n % (i + 2) == 0) return false;
+
+		i += (d.n_threads * 6);
 	}
+	return true;
 }
 
-// This` function takes a list of numbers in nums[] and returns only numbers that
+void* thread_start(void* t) {
+	struct ThreadData data = *(struct ThreadData*) t;
+	while(1) {
+		int r = pthread_barrier_wait(&barrier);
+		if(r == PTHREAD_BARRIER_SERIAL_THREAD) {
+			//SERIAL SECTION
+			if(data.nums->empty()) {
+				finished = true;
+			}
+			else {
+				n = data.nums->back();
+				data.nums->pop_back();
+			}
+		}
+		pthread_barrier_wait(&barrier);
+
+		//PARALLEL SECTION
+		if(finished) {
+			pthread_exit(0);
+		}
+
+		results[data.thread_num] = is_prime(n, data);
+
+		r = pthread_barrier_wait(&barrier);
+		if(r == PTHREAD_BARRIER_SERIAL_THREAD) {
+			bool res = true;
+			for(int i = 0; i < data.n_threads; i++) {
+				if(!results[i]) {
+					res = false;
+					break;
+				}
+			}
+			if(res) {
+				primes.push_back(n);
+			}
+		}
+		pthread_barrier_wait(&barrier);
+	}
+
+	pthread_exit(0);
+}
+
+// This function takes a list of numbers in nums[] and returns only numbers that
 // are primes.
 //
 // The parameter n_threads indicates how many threads should be created to speed
@@ -111,20 +171,25 @@ void* thread_start(void* t) {
 std::vector<int64_t>
 detect_primes(const std::vector<int64_t> & nums, int n_threads)
 {
-	std::vector<int64_t> result;
+	std::vector<int64_t> nums_copy = nums;
 	pthread_t threads[n_threads];
-	finished.store(false);
-	pthread_barrier_t barrier;
+	finished = false;
 	pthread_barrier_init(&barrier, NULL, n_threads);
-	struct Task task(nums, &barrier);
+	struct ThreadData data[n_threads];
 
 	for(int i = 0; i < n_threads; i++) {
-		pthread_create(&threads[i], NULL, thread_start, &task);
+		int n = 5 + (i * 6);
+		data[i].set(n, n_threads, i, &nums_copy);
+	}
+
+	for(int i = 0; i < n_threads; i++) {
+		pthread_create(&threads[i], NULL, thread_start, &data[i]);
 		//create all of the threads and send them to start work in the parallel work function
 		//the input argument is the corresponding Task entry
 	}
 
 	for(int i = 0; i < n_threads; i++) {
+		//std::cout<<"thread "<<i<<": "<<threads[i]<<std::endl;
 		pthread_join(threads[i], NULL);
 		//wait for all threads to complete their work and destroy the threads
 	}
@@ -132,5 +197,5 @@ detect_primes(const std::vector<int64_t> & nums, int n_threads)
 	// for (auto num : nums) {
    // 	if (is_prime(num, threads)) result.push_back(num);
 	// }
-	return result;
+	return primes;
 }
