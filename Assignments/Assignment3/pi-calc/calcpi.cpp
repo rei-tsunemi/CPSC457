@@ -28,10 +28,6 @@ struct Task {
 	int start, end, r;
 	double rsq;
 	uint64_t partial_sum;
-
-	// Task() {
-	// 	partial_sum = 0;
-	// };
 };
 
 uint64_t count_pixels(int r, int n_threads)
@@ -100,7 +96,7 @@ void* parallelWork(void* thread_task) {
 	//convert the input arguments into their correct types
 
 	int sum = 0, end = task->end;
-	//use temporary local variables for the sum and end since continuously accessing\
+	//use temporary local variables for the sum and end since continuously accessing
 	//them through the Task pointer is expensive
 
 	for(double x = task->start + 1; x <= end; x++) {
@@ -110,10 +106,9 @@ void* parallelWork(void* thread_task) {
 		}
 	}
 	//sum up the area using a similar loop to the single-threaded version
-	
+
 	task->partial_sum = sum;
 	//put the sum into the partial sum variable
 
 	pthread_exit(0);
-	//return 0
 }
