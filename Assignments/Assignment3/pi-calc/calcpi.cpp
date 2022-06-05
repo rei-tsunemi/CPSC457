@@ -15,9 +15,6 @@
 // parallelize the function so that it uses n_threads threads to do
 // the computation.
 
-// check for some help maybe? https://github.com/stephanedorotich/CPSC457_TUT
-// WORK DOES NOT INCLUDE -1 AT THE END BECAUSE IT IS NOT INCLUSIVE, WATCH OUT FOR THIS DURING IMPLEMENTATION
-
 #include "calcpi.h"
 #include <pthread.h>
 
