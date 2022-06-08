@@ -25,30 +25,30 @@ std::vector<std::string> my_split(std::string s) {
 	size_t pos = 0;
 	if((pos = s.find(delim1)) != std::string::npos) {
 		//if the arrow is pointing right, trim the string to get the two words and push them both to the front of the vector
-		str = my_trim(s.substr(0, pos));
+		str = s.substr(0, pos);
 		str.push_back('p');	//add a p to the end of the string to indicate that it is a process
 		result.push_back(str);
 
-		s.erase(0, pos + delim1.length());
-		s = my_trim(s);
+		s.erase(0, pos + 2);
+		//s = my_trim(s);
 		s.push_back('r');	//add an r to the end of the string to indicate that it is a resource
 		result.push_back(s);
 	}
 	else if((pos = s.find(delim2)) != std::string::npos) {
 		//if the arrow points left, trim the string but put both parts to the back of the vector
-		str = my_trim(s.substr(0, pos));
+		str = s.substr(0, pos);
 		str.push_back('p');	//add a p to the end of the string to indicate that it is a process
-		result.push_back(str);
+		//result.push_back(str);
 
-		s.erase(0, pos + delim2.length());
-		s = my_trim(s);
+		s.erase(0, pos + 2);
+		//s = my_trim(s);
 		s.push_back('r');	//add an r to the end of the string to indicate that it is a process
-		result.insert(result.begin(), s);
+		result.push_back(s);
+		result.push_back(str);
 	}
 
 	return result;
 }
-
 
 class Graph {
 private:
@@ -104,26 +104,24 @@ public:
 		while(!zeros.empty()) {
 			std::string n = zeros.back();
 			zeros.pop_back();
-			//take one of the vertices out of the queue
+			out.erase(n);
 
-			std::vector<std::string> incoming = adj_list[n];
-			for(std::string i: incoming) {
-				//since n is  being removed from the graph, all incoming edges will be deleted
-				out[i]--;
-				if(out[i] == 0) {
-					zeros.insert(zeros.begin(), i);
-					//if any element i now has no outgoin edges, add it to the beginning of the vector
+			std::vector<std::string> incoming_n = adj_list[n];
+			for(std::string n2: incoming_n) {
+				out[n2]--;
+				if(out[n2] == 0) {
+					zeros.push_back(n2);
 				}
 			}
 		}
 
+
 		std::vector<std::string> result;
 		for(auto i: out) {
 			std::string s = i.first;
-			if(out[s] != 0 && (s.back() == 'p')) {
-				//if there is an element with >0 outgoing edges and it is a process (indicated by the p at the end)
-				//add it to the result
-				s.erase(s.length() - 1, 1);
+			if(s.back() == 'p') {
+				s.pop_back();
+				s = my_trim(s);
 				result.push_back(s);
 			}
 		}
@@ -157,6 +155,7 @@ Result detect_deadlock(const std::vector<std::string> & edges)
 
 	for(long unsigned int i = 0; i < edges.size(); i++) {
 		std::string edge = edges.at(i);
+
 		graph.add(edge);
 
 		std::vector<std::string> cycle_edges = graph.toposort();
