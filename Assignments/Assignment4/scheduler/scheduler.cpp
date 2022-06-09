@@ -47,22 +47,26 @@ void simulate_rr(
 		}
 
 		if(context_switch) {
-			if(seq.size() < max_seq_len && (seq.empty() ||seq.back() != cpu)) {
+			if(seq.size() < max_seq_len && (seq.empty() || seq.back() != cpu)) {
 				seq.push_back(cpu);
 			}
 
 			remaining_slice = quantum - 1;
+			//reset the quantum
 
 			if(cpu != -1) {
 				if(remaining_bursts.at(cpu) > 0) {
 					rq.push_back(cpu);
+					//if the process needs more time to run, add it back to the ready queue
 				}
 				else {
 					processes.at(cpu).finish_time = cur_time;
+					//otherwise set its finish time
 				}
 			}
 
 			cpu = -1;
+			//set the cpu to idle
 		}
 
 		while(!jq.empty()) {
@@ -75,10 +79,12 @@ void simulate_rr(
 			}
 			else {
 				break;
+				//since the process are sorted by arrival time, if the first process hasn't come yet, none of them will
 			}
 		}
 
-		if((cpu == -1 || context_switch) && !rq.empty()) {
+		if(cpu == -1 && !rq.empty()) {
+			//if the CPU is idle, and there are processes ready, take one from the ready queue
 			cpu = rq.at(0);
 			rq.erase(rq.begin());
 			context_switch = false;
@@ -93,6 +99,7 @@ void simulate_rr(
 		//std::cout<<"RUNNING PROCESS # "<<cpu<<std::endl;
 
 		if(cpu != -1) {
+			//if the cpu is not idle, adjust the remaining burst time for the running process
 			remaining_bursts.at(cpu)--;
 
 			if(remaining_bursts.at(cpu) == 0) {
@@ -105,13 +112,14 @@ void simulate_rr(
 			//std::cout<<remaining_slice<<" time left until switch"<<std::endl;
 			if(remaining_slice == 0 && (rq.empty() || rq.at(0) != cpu)) {
 				context_switch = true;
-				//if the quantum expires or the process is done, signal to the simulation that a context switch is needed
+				//if the quantum expires, signal to the simulation that a context switch is needed
 			}
 
 			remaining_slice--;
 		}
 		else {
 			context_switch = true;
+			//if the cpu is idle, attempt to perform a context switch
 		}
 
 		cur_time++;
