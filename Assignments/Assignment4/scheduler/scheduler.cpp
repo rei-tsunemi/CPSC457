@@ -28,7 +28,7 @@ void simulate_rr(
 ) {
 	seq.clear();
 	std::vector<int> rq, jq;
-	int64_t cur_time;
+	int64_t cur_time = 0;
 	int cpu = -1;
 	std::vector<int64_t> remaining_bursts;
 	int64_t remaining_slice = quantum - 1;
@@ -39,9 +39,18 @@ void simulate_rr(
 	}
 
 	bool context_switch = false;
-	for(cur_time = 0; cur_time < max_seq_len; cur_time++) {
+	while(1) {
+		//std::cout<<"TIME = "<<cur_time<<std::endl;
+		if(rq.empty() && jq.empty() && cpu == -1) {
+			break;
+			//if there are no processes in either the job queue or ready queue, and the cpu is idle, the simulation is done, so break
+		}
+
 		if(context_switch) {
-			//seq.push_back(cpu);
+			if(cur_time <= max_seq_len && seq.back() != cpu) {
+				seq.push_back(cpu);
+			}
+
 			remaining_slice = quantum - 1;
 
 			if(cpu != -1) {
@@ -59,6 +68,7 @@ void simulate_rr(
 		while(!jq.empty()) {
 			int i = jq.front();
 			if(processes.at(i).arrival_time == cur_time) {
+				//std::cout<<i<<"th process added to rq"<<std::endl;
 				rq.push_back(i);
 				jq.erase(jq.begin());
 				//if the process's start time has come, add it to the ready queue and remove it from the job queue
@@ -72,12 +82,15 @@ void simulate_rr(
 			cpu = rq.at(0);
 			rq.erase(rq.begin());
 			context_switch = false;
+			//std::cout<<"switched to process # "<<cpu<<std::endl;
 
 			if(processes.at(cpu).start_time == -1) {
 				processes.at(cpu).start_time = cur_time;
 				//if this process hasn't run yet, set its start time
 			}
 		}
+
+		//std::cout<<"RUNNING PROCESS # "<<cpu<<std::endl;
 
 		if(cpu != -1) {
 			remaining_bursts.at(cpu)--;
@@ -88,7 +101,8 @@ void simulate_rr(
 				//if the process is finished, set the end time and set the cpu to idle
 			}
 
-			if(remaining_slice == 0 && (!rq.empty() && rq.at(0) != cpu)) {
+			//std::cout<<remaining_slice<<" time left until switch"<<std::endl;
+			if(remaining_slice == 0 && (rq.empty() || rq.at(0) != cpu)) {
 				context_switch = true;
 				//if the quantum expires or the process is done, signal to the simulation that a context switch is needed
 			}
@@ -99,6 +113,11 @@ void simulate_rr(
 			context_switch = true;
 		}
 
-		seq.push_back(cpu);
+		if(cur_time == max_seq_len) {
+			seq.push_back(cpu);
+		}
+
+		cur_time++;
+		//std::cout<<std::endl;
 	}
 }
