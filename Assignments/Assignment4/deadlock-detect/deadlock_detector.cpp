@@ -11,6 +11,11 @@ private:
 	std::unordered_map<std::string, int> out_counts;
 
 public:
+	std::vector<std::string> add_and_sort(std::string e) {
+		add(e);
+		return toposort();
+	}
+
 	void add(std::string e) {
 		std::vector<std::string> r = split(e);
 		//split the string into the starting and end point of the edge. Ex. "2 <- a" would be split into "a" and "2" with "a" being the first element
@@ -18,17 +23,15 @@ public:
 		std::string start, end;
 		if(r.at(1).compare("->") == 0) {
 			start = r.at(0);
-			start.push_back('p');
+			start.push_back('*');
 			end = r.at(2);
-			end.push_back('r');
-			//add a p and r to the appropriate strings to indicate a process and resource respectively
 		}
 		else {
 			start = r.at(2);
-			start.push_back('r');
 			end = r.at(0);
-			end.push_back('p');
+			end.push_back('*');
 		}
+		//add a * to the appropriate string to indicate a process
 
 		out_counts[start]++;
 		//increment the number of edges coming from the start point
@@ -47,18 +50,16 @@ public:
 			//otherwise, just add the new element
 		}
 
-		found = adj_list.find(start);
-		if(found == adj_list.end()) {
-			std::vector<std::string> empty;
-			adj_list.insert({start, empty});
-			//if the starting point of the edge is not already in the adjacency list, insert it with an empty vector
-		}
+		adj_list[start];
+		//if the starting point is already in the adjacency list, do nothing, 
+		//otherwise initialize it in the map
 	}
 
 	//toposort adapted from pseudocode given in hint for Q1
 	std::vector<std::string> toposort() {
 		std::unordered_map<std::string, int> out = out_counts;
 		std::vector<std::string> zeros;
+		int num = out.size();
 
 		for(auto i: out) {
 			if(i.second == 0) {
@@ -67,27 +68,34 @@ public:
 			}
 		}
 
-		while(!zeros.empty()) {
+		int z_size = zeros.size();
+		while(z_size != 0) {
 			std::string n = zeros.back();
 			zeros.pop_back();
-			out.erase(n);
+			z_size--;
+			num--;
 
 			std::vector<std::string> incoming_n = adj_list[n];
 			for(std::string n2: incoming_n) {
+				//try use iterator instead of square bracket
 				out[n2]--;
 				if(out[n2] == 0) {
 					zeros.push_back(n2);
+					z_size++;
 				}
 			}
 		}
 
 
 		std::vector<std::string> result;
-		for(auto i: out) {
-			std::string s = i.first;
-			if(s.back() == 'p') {
-				s.pop_back();
-				result.push_back(s);
+		if(num != 0) {
+			for(auto i: out) {
+				std::string s = i.first;
+				if(i.second != 0 && s.back() == '*') {
+					s.pop_back();
+					result.push_back(s);
+					//if the deadlocked element is a process (indicated by *), remove the extra character and add it to the result					
+				}
 			}
 		}
 
@@ -115,15 +123,14 @@ public:
 Result detect_deadlock(const std::vector<std::string> & edges)
 {
 	Result result;
-	result.edge_index = -1;
 	Graph graph;
 
 	for(long unsigned int i = 0; i < edges.size(); i++) {
 		std::string edge = edges.at(i);
 
-		graph.add(edge);
 
-		std::vector<std::string> cycle_edges = graph.toposort();
+		std::vector<std::string> cycle_edges = graph.add_and_sort(edge);
+		//graph.toposort();
 		if(!cycle_edges.empty()) {
 			//if cycle_edges is not empty, that means a cycle was detected
 			//update results, and then return
@@ -133,5 +140,6 @@ Result detect_deadlock(const std::vector<std::string> & edges)
 		}
 	}
 
+	result.edge_index = -1;
 	return result;
 }
