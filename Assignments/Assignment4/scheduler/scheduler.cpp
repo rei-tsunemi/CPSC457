@@ -47,7 +47,7 @@ void simulate_rr(
 		}
 
 		if(context_switch) {
-			if(cur_time <= max_seq_len && seq.back() != cpu) {
+			if(seq.size() < max_seq_len && (seq.empty() ||seq.back() != cpu)) {
 				seq.push_back(cpu);
 			}
 
@@ -96,6 +96,7 @@ void simulate_rr(
 			remaining_bursts.at(cpu)--;
 
 			if(remaining_bursts.at(cpu) == 0) {
+				//std::cout<<"finished process"<<std::endl;
 				processes.at(cpu).finish_time = cur_time;
 				context_switch = true;
 				//if the process is finished, set the end time and set the cpu to idle
@@ -111,10 +112,6 @@ void simulate_rr(
 		}
 		else {
 			context_switch = true;
-		}
-
-		if(cur_time == max_seq_len) {
-			seq.push_back(cpu);
 		}
 
 		cur_time++;
