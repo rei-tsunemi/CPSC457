@@ -7,8 +7,10 @@
 
 class Graph {
 private:
-	std::unordered_map<std::string, std::vector<std::string>> adj_list;
-	std::unordered_map<std::string, int> out_counts;
+	std::vector<std::vector<int>> adj_list;
+	std::vector<int> out_counts;
+	Word2Int w2i;
+	std::vector<std::string> conversions;
 
 public:
 	std::vector<std::string> add_and_sort(std::string e) {
@@ -16,8 +18,8 @@ public:
 		return toposort();
 	}
 
-	void add(std::string e) {
-		std::vector<std::string> r = split(e);
+	void add(std::string edge) {
+		std::vector<std::string> r = split(edge);
 		//split the string into the starting and end point of the edge. Ex. "2 <- a" would be split into "a" and "2" with "a" being the first element
 
 		std::string start, end;
@@ -33,10 +35,38 @@ public:
 		}
 		//add a * to the appropriate string to indicate a process
 
-		out_counts[start]++;
-		//increment the number of edges coming from the start point
+		int s = w2i.get(start);
+		int e = w2i.get(end);
+		//get integer values for the strings
 
-		auto found = adj_list.find(end);
+		conversions.push_back(start);
+		conversions.push_back(end);
+		std::cout<<"start: "<<s<<"\tend: "<<e<<std::endl;
+
+		if (s < adj_list.size()) {
+			out_counts.at(s)++;
+			//increment the number of edges coming from the start point
+		}
+		else {
+			out_counts.push_back(1);
+			std::vector<int> empty;
+			adj_list.push_back(empty);
+			//if the starting element was not already in the lists, create entries
+		}
+
+		if(e >= adj_list.size()) {
+			std::vector<int> temp;
+			temp.push_back(s);
+			adj_list.push_back(temp);
+			out_counts.push_back(0);
+			//if the ending element was not already in the lists, create entries
+		}
+		else {
+			adj_list.back().push_back(s);
+			//otherwise just add the new edge
+		}
+
+	/*	auto found = adj_list.find(end);
 		if(found == adj_list.end()) {
 			std::vector<std::string> temp;
 			temp.emplace_back(start);
@@ -51,12 +81,55 @@ public:
 		}
 
 		adj_list[start];
-		//if the starting point is already in the adjacency list, do nothing, 
-		//otherwise initialize it in the map
+		//if the starting point is already in the adjacency list, do nothing,
+		//otherwise initialize it in the map */
 	}
 
 	//toposort adapted from pseudocode given in hint for Q1
 	std::vector<std::string> toposort() {
+		std::vector<int> out = out_counts;
+		std::vector<int> zeros;
+		int num = out.size();
+
+		for(int i = 0; i < out.size(); i++) {
+			if(out.at(i) == 0) {
+				zeros.push_back(i);
+				//if i has no outgoing edges, add it to the list of vertices
+			}
+		}
+
+		int z_size = zeros.size();
+		std::cout<<z_size<<std::endl;
+		while(z_size != 0) {
+			int n = zeros.back();
+			zeros.pop_back();
+			z_size--;
+			num--;
+
+			std::vector<int> incoming_n = adj_list.at(n);
+			for(int n2: incoming_n) {
+				out.at(n2)--;
+				if(out.at(n2) == 0) {
+					zeros.push_back(n2);
+					z_size++;
+				}
+			}
+		}
+
+		std::vector<std::string> result;
+		if(num != 0) {
+			for(int i = 0; i < out.size(); i++) {
+				std::string s = conversions.at(i);
+				if(out.at(i) != 0 && s.back() == '*') {
+					s.pop_back();
+					result.push_back(s);
+				}
+			}
+		}
+
+		return result;
+
+/*
 		std::unordered_map<std::string, int> out = out_counts;
 		std::vector<std::string> zeros;
 		int num = out.size();
@@ -100,6 +173,7 @@ public:
 		}
 
 		return result;
+*/
 	}
 };
 
