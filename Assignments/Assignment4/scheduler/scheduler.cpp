@@ -42,37 +42,53 @@ void simulate_rr(
 	while(1) {
 		//std::cout<<"TIME = "<<cur_time<<std::endl;
 		if(rq.empty() && jq.empty() && cpu == -1) {
+			if(seq.size() > max_seq_len) {
+				seq.resize(max_seq_len);
+			}
 			break;
 			//if there are no processes in either the job queue or ready queue, and the cpu is idle, the simulation is done, so break
 		}
 
-		if(context_switch) {
-			if(seq.size() < max_seq_len && (seq.empty() || seq.back() != cpu)) {
-				seq.push_back(cpu);
-			}
-
-			remaining_slice = quantum - 1;
-			//reset the quantum
-
-			if(cpu != -1) {
-				if(remaining_bursts.at(cpu) > 0) {
-					rq.push_back(cpu);
-					//if the process needs more time to run, add it back to the ready queue
-				}
-				else {
-					processes.at(cpu).finish_time = cur_time;
-					//otherwise set its finish time
-				}
-			}
-
-			cpu = -1;
-			//set the cpu to idle
+		if(seq.empty() || seq.back() != cpu) {
+			seq.push_back(cpu);
 		}
 
+		remaining_slice = quantum - 1;
+		//reset the quantum
+
+		//add any process that came before the current time
+		while(!jq.empty()) {
+			int i = jq.front();
+			if(processes.at(i).arrival_time < cur_time) {
+			//	std::cout<<i<<"th process added to rq"<<std::endl;
+				rq.push_back(i);
+				jq.erase(jq.begin());
+				//if the process's start time has come, add it to the ready queue and remove it from the job queue
+			}
+			else {
+				break;
+				//since the process are sorted by arrival time, if the first process hasn't come yet, none of them will
+			}
+		}
+
+		if(cpu != -1) {
+			if(remaining_bursts.at(cpu) > 0 && !rq.empty()) {
+				rq.push_back(cpu);
+				cpu = -1;
+				//if the process needs more time to run, add it back to the ready queue
+				}
+			else if (remaining_bursts.at(cpu) == 0) {
+				processes.at(cpu).finish_time = cur_time;
+				cpu = -1;
+				//otherwise set its finish time
+			}
+		}
+
+		//add ay processes that arrive at current time
 		while(!jq.empty()) {
 			int i = jq.front();
 			if(processes.at(i).arrival_time == cur_time) {
-				//std::cout<<i<<"th process added to rq"<<std::endl;
+			//	std::cout<<i<<"th process added to rq"<<std::endl;
 				rq.push_back(i);
 				jq.erase(jq.begin());
 				//if the process's start time has come, add it to the ready queue and remove it from the job queue
@@ -88,7 +104,7 @@ void simulate_rr(
 			cpu = rq.at(0);
 			rq.erase(rq.begin());
 			context_switch = false;
-			//std::cout<<"switched to process # "<<cpu<<std::endl;
+		//	std::cout<<"switched to process # "<<cpu<<std::endl;
 
 			if(processes.at(cpu).start_time == -1) {
 				processes.at(cpu).start_time = cur_time;
@@ -96,11 +112,11 @@ void simulate_rr(
 			}
 		}
 
-		//std::cout<<"RUNNING PROCESS # "<<cpu<<std::endl;
+	//	std::cout<<"RUNNING PROCESS # "<<cpu<<std::endl;
 
-		if(cpu != -1) {
+	/*	if(cpu != -1) {
 			//if the cpu is not idle, adjust the remaining burst time for the running process
-			remaining_bursts.at(cpu)--;
+			//remaining_bursts.at(cpu)--;
 
 			if(remaining_bursts.at(cpu) == 0) {
 				//std::cout<<"finished process"<<std::endl;
@@ -120,9 +136,26 @@ void simulate_rr(
 		else {
 			context_switch = true;
 			//if the cpu is idle, attempt to perform a context switch
-		}
+		} */
 
-		cur_time++;
-		//std::cout<<std::endl;
+		if(cpu == -1 && !jq.empty()) {
+			cur_time = processes.at(jq.at(0)).arrival_time;
+		}
+		else if (cpu == -1) {
+			cur_time++;
+		}
+		else if(remaining_bursts.at(cpu) <= quantum) {
+		//	std::cout<<"time left for process: "<<remaining_bursts.at(cpu)<<std::endl;
+			cur_time += remaining_bursts.at(cpu);
+			remaining_bursts.at(cpu) = 0;
+
+		}
+		else {
+		//	std::cout<<"time left for process: "<<remaining_bursts.at(cpu)<<std::endl;
+			cur_time += quantum;
+			remaining_bursts.at(cpu) -= quantum;
+		}
+		//cur_time++;
+//		std::cout<<std::endl;
 	}
 }
