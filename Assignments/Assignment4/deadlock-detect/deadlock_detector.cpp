@@ -5,8 +5,10 @@
 
 class Graph {
 private:
-	std::unordered_map<std::string, std::vector<std::string>> adj_list;
-	std::unordered_map<std::string, int> out_counts;
+	std::vector<std::vector<int>> adj_list;
+	std::vector<int> out_counts;
+	Word2Int w2i;
+	std::vector<std::string> conversions;
 
 public:
 	std::vector<std::string> add_and_sort(std::string e) {
@@ -14,15 +16,9 @@ public:
 		return toposort();
 	}
 
-<<<<<<< Updated upstream
-	void add(std::string e) {
-		std::vector<std::string> r = split(e);
-		//split the string into the starting and end point of the edge. Ex. "2 <- a" would be split into "a" and "2" with "a" being the first element
-=======
 	void add(std::string edge) {
 		std::vector<std::string> r = split(edge);
 		//split the string everywhere there is a whitespace
->>>>>>> Stashed changes
 
 		std::string start, end;
 		if(r.at(1).compare("->") == 0) {
@@ -37,19 +33,23 @@ public:
 		}
 		//add a * to the appropriate string to indicate a process
 
-<<<<<<< Updated upstream
-		out_counts[start]++;
-		//increment the number of edges coming from the start point
+		int s = w2i.get(start);
+		int e = w2i.get(end);
+		//get integer values for the strings
 
-		auto found = adj_list.find(end);
-		if(found == adj_list.end()) {
-			std::vector<std::string> temp;
-			temp.emplace_back(start);
-			adj_list.insert({end, temp});
-			out_counts[end] = 0;
-			//if end is not already in the map, create a vector of strings and insert it into the map
-			//also initialize out_counts to 0
-=======
+		int num_elements = (int) conversions.size();
+
+		if(s >= num_elements) {
+			conversions.push_back(start);
+		}
+		if(e >= num_elements) {
+			conversions.push_back(end);
+		}
+
+		if (s < num_elements) {
+			out_counts.at(s)++;
+			//increment the number of edges coming from the start point
+
 		long unsigned int s = w2i.get(start);
 		long unsigned int e = w2i.get(end);
 		//get integer values for the strings
@@ -65,21 +65,17 @@ public:
 		if (s < adj_list.size()) {
 			out_counts.at(s)++;
 			//increment the number of edges coming from the start point
->>>>>>> Stashed changes
 		}
 		else {
-			(found->second).push_back(start);
-			//otherwise, just add the new element
+			out_counts.push_back(1);
+			std::vector<int> empty;
+			adj_list.push_back(empty);
+			//if the starting element was not already in the lists, create entries
 		}
 
-<<<<<<< Updated upstream
-		adj_list[start];
-		//if the starting point is already in the adjacency list, do nothing, 
-		//otherwise initialize it in the map
-=======
-		if(e < adj_list.size()) {
+		if(e < num_elements) {
 			adj_list.at(e).push_back(s);
-			//add the new incoming edge
+			//add the new edge
 		}
 		else {
 			std::vector<int> temp;
@@ -88,39 +84,12 @@ public:
 			out_counts.push_back(0);
 			//if the ending element was not already in the lists, create entries
 		}
->>>>>>> Stashed changes
 	}
 
 	//toposort adapted from pseudocode given in hint for Q1
 	std::vector<std::string> toposort() {
-<<<<<<< Updated upstream
-		std::unordered_map<std::string, int> out = out_counts;
-		std::vector<std::string> zeros;
-		int num = out.size();
-
-		for(auto i: out) {
-			if(i.second == 0) {
-				zeros.emplace_back(i.first);
-				//if i has no outgoing edges, add it to the list of vertices with no outgoing edges
-			}
-		}
-
-		int z_size = zeros.size();
-		while(z_size != 0) {
-			std::string n = zeros.back();
-			zeros.pop_back();
-			z_size--;
-			num--;
-
-			std::vector<std::string> incoming_n = adj_list[n];
-			for(std::string n2: incoming_n) {
-				//try use iterator instead of square bracket
-				out[n2]--;
-				if(out[n2] == 0) {
-					zeros.push_back(n2);
-					z_size++;
-=======
-		std::vector<int> zeros, out = out_counts;
+		std::vector<int> out = out_counts;
+		std::vector<int> zeros;
 		int num_left = out.size();
 
 		for(long unsigned int i = 0; i < out.size(); i++) {
@@ -128,51 +97,49 @@ public:
 				zeros.push_back(i);
 			}
 		}
+		//add any elements with no outgoing edges to the zeros vector
 
 		while(zeros.size() != 0) {
 			int n = zeros.back();
 			zeros.pop_back();
 			num_left--;
+			//grab an element from the stack
 
 			std::vector<int> incoming = adj_list.at(n);
+			//get all incoming edges at n
 			for(int n2: incoming) {
+				//since n is being removed from the graph, all n2 will have one less outgoing edge
 				out.at(n2)--;
 				if(out.at(n2) == 0) {
 					zeros.push_back(n2);
->>>>>>> Stashed changes
-				}
-			}
-		}
+					//if one of n2 now has no outgoing edges, add it to zeros
+        }
+      }
+    }
 
-<<<<<<< Updated upstream
-
-		std::vector<std::string> result;
-		if(num != 0) {
-			for(auto i: out) {
-				std::string s = i.first;
-				if(i.second != 0 && s.back() == '*') {
-					s.pop_back();
-					result.push_back(s);
-					//if the deadlocked element is a process (indicated by *), remove the extra character and add it to the result					
-=======
 		std::vector<std::string> results;
 		if(num_left != 0) {
+			//if there are any elements with > 0 outgoing edges, find them
 			for(long unsigned int i = 0; i < out.size(); i++) {
-				std::string s = conversions.at(i);
+				if(out.at(i) != 0) {
+					std::string s = conversions.at(i);
 
-				if(out.at(i) != 0 && s.back() == '*') {
-					s.pop_back();
-					results.push_back(s);
->>>>>>> Stashed changes
+					if(s.back() == '*') {
+						//if the element is a process, add it to the result vector
+						s.pop_back();
+						results.push_back(s);
+						num_left--;
+					}
+				}
+
+				if(num_left == 0) {
+					break;
+					//once all the elements have been found, stop searching
 				}
 			}
 		}
-
-<<<<<<< Updated upstream
+    
 		return result;
-=======
-		return results;
->>>>>>> Stashed changes
 	}
 };
 
@@ -201,7 +168,8 @@ Result detect_deadlock(const std::vector<std::string> & edges)
 	for(long unsigned int i = 0; i < edges.size(); i++) {
 		std::string edge = edges.at(i);
 
-		std::vector<std::string> cycle_edges = graph.add_and_sort(edge);
+		std::vector<std::string> cycle_edges = graph.add_and_sort(edge)
+      
 		if(!cycle_edges.empty()) {
 			//if cycle_edges is not empty, that means a cycle was detected
 			//update results, and then return
