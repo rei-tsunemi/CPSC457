@@ -2,8 +2,6 @@
 
 #include "deadlock_detector.h"
 #include "common.h"
-#include <unordered_map>
-#include <iostream>
 
 class Graph {
 private:
@@ -20,7 +18,7 @@ public:
 
 	void add(std::string edge) {
 		std::vector<std::string> r = split(edge);
-		//split the string into the starting and end point of the edge. Ex. "2 <- a" would be split into "a" and "2" with "a" being the first element
+		//split the string everywhere there is a whitespace
 
 		std::string start, end;
 		if(r.at(1).compare("->") == 0) {
@@ -38,16 +36,17 @@ public:
 		int s = w2i.get(start);
 		int e = w2i.get(end);
 		//get integer values for the strings
-		//std::cout<<"start = "<<s<<"\tend = "<<e<<std::endl;
 
-		if(s >= conversions.size()) {
+		int num_elements = (int) conversions.size();
+
+		if(s >= num_elements) {
 			conversions.push_back(start);
 		}
-		if(e >= conversions.size()) {
+		if(e >= num_elements) {
 			conversions.push_back(end);
 		}
 
-		if (s < adj_list.size()) {
+		if (s < num_elements) {
 			out_counts.at(s)++;
 			//increment the number of edges coming from the start point
 		}
@@ -58,16 +57,16 @@ public:
 			//if the starting element was not already in the lists, create entries
 		}
 
-		if(e >= adj_list.size()) {
+		if(e < num_elements) {
+			adj_list.at(e).push_back(s);
+			//otherwise just add the new edge
+		}
+		else {
 			std::vector<int> temp;
 			temp.push_back(s);
 			adj_list.push_back(temp);
 			out_counts.push_back(0);
 			//if the ending element was not already in the lists, create entries
-		}
-		else {
-			adj_list.at(e).push_back(s);
-			//otherwise just add the new edge
 		}
 	}
 
@@ -77,82 +76,54 @@ public:
 		std::vector<int> zeros;
 		int num_left = out.size();
 
-		for(int i = 0; i < out.size(); i++) {
+		for(long unsigned int i = 0; i < out.size(); i++) {
 			if(out.at(i) == 0) {
 				zeros.push_back(i);
 			}
 		}
+		//add any elements with no outgoing edges to the zeros vector
 
-		int z_size = zeros.size();
-		while(z_size != 0) {
+		while(zeros.size() != 0) {
 			int n = zeros.back();
 			zeros.pop_back();
-			z_size--;
 			num_left--;
+			//grab an elements from the stack
 
 			std::vector<int> incoming = adj_list.at(n);
+			//get all incoming edges at n
 			for(int n2: incoming) {
+				//since n is being removed from the graph, all n2 will have one less outgoing edge
 				out.at(n2)--;
 				if(out.at(n2) == 0) {
 					zeros.push_back(n2);
-					z_size++;
+					//if one of n2 now has no outgoing edges, add it to zeros
 				}
 			}
 		}
 
 		std::vector<std::string> results;
-		for(int i = 0; i < out.size(); i++) {
-			std::string s = conversions.at(i);
-			//std::cout<<i<<" = "<<s<<std::endl;
-			if(out.at(i) != 0 && s.back() == '*') {
-				s.pop_back();
-				results.push_back(s);
+		if(num_left != 0) {
+			//if there are any elements with > 0 outgoing edges, find them
+			for(long unsigned int i = 0; i < out.size(); i++) {
+				if(out.at(i) != 0) {
+					std::string s = conversions.at(i);
+
+					if(s.back() == '*') {
+						//if the element is a process, add it to the result vector
+						s.pop_back();
+						results.push_back(s);
+						num_left--;
+					}
+				}
+
+				if(num_left == 0) {
+					break;
+					//once all the elements have been found, stop searching
+				}
 			}
 		}
 
 		return results;
-
-		/*std::vector<int> out = out_counts;
-		std::vector<int> zeros;
-		int num = out.size();
-
-		for(int i = 0; i < out.size(); i++) {
-			if(out.at(i) == 0) {
-				zeros.push_back(i);
-				//if i has no outgoing edges, add it to the list of vertices
-			}
-		}
-
-		int z_size = zeros.size();
-		std::cout<<z_size<<std::endl;
-		while(z_size != 0) {
-			int n = zeros.back();
-			zeros.pop_back();
-			z_size--;
-			num--;
-
-			std::vector<int> incoming_n = adj_list.at(n);
-			for(int n2: incoming_n) {
-				out.at(n2)--;
-				if(out.at(n2) == 0) {
-					zeros.push_back(n2);
-					z_size++;
-				}
-			}
-		}
-
-		std::vector<std::string> result;
-		if(num != 0) {
-			for(int i = 0; i < out.size(); i++) {
-				std::string s = conversions.at(i);
-				if(out.at(i) != 0 && s.back() == '*') {
-					s.pop_back();
-					result.push_back(s);
-				}
-			}
-		}
-
-		return result; */
 	}
 };
 
@@ -181,9 +152,8 @@ Result detect_deadlock(const std::vector<std::string> & edges)
 	for(long unsigned int i = 0; i < edges.size(); i++) {
 		std::string edge = edges.at(i);
 
-
 		std::vector<std::string> cycle_edges = graph.add_and_sort(edge);
-		//graph.toposort();
+
 		if(!cycle_edges.empty()) {
 			//if cycle_edges is not empty, that means a cycle was detected
 			//update results, and then return
