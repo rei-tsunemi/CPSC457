@@ -49,6 +49,22 @@ public:
 		if (s < num_elements) {
 			out_counts.at(s)++;
 			//increment the number of edges coming from the start point
+
+		long unsigned int s = w2i.get(start);
+		long unsigned int e = w2i.get(end);
+		//get integer values for the strings
+
+		if(s >= conversions.size()) {
+			conversions.push_back(start);
+		}
+		if(e >= conversions.size()) {
+			conversions.push_back(end);
+		}
+		//if the string is a new element, add its string-int conversion to the conversion list
+
+		if (s < adj_list.size()) {
+			out_counts.at(s)++;
+			//increment the number of edges coming from the start point
 		}
 		else {
 			out_counts.push_back(1);
@@ -59,7 +75,7 @@ public:
 
 		if(e < num_elements) {
 			adj_list.at(e).push_back(s);
-			//otherwise just add the new edge
+			//add the new edge
 		}
 		else {
 			std::vector<int> temp;
@@ -87,7 +103,7 @@ public:
 			int n = zeros.back();
 			zeros.pop_back();
 			num_left--;
-			//grab an elements from the stack
+			//grab an element from the stack
 
 			std::vector<int> incoming = adj_list.at(n);
 			//get all incoming edges at n
@@ -97,9 +113,9 @@ public:
 				if(out.at(n2) == 0) {
 					zeros.push_back(n2);
 					//if one of n2 now has no outgoing edges, add it to zeros
-				}
-			}
-		}
+        }
+      }
+    }
 
 		std::vector<std::string> results;
 		if(num_left != 0) {
@@ -122,8 +138,8 @@ public:
 				}
 			}
 		}
-
-		return results;
+    
+		return result;
 	}
 };
 
@@ -152,8 +168,8 @@ Result detect_deadlock(const std::vector<std::string> & edges)
 	for(long unsigned int i = 0; i < edges.size(); i++) {
 		std::string edge = edges.at(i);
 
-		std::vector<std::string> cycle_edges = graph.add_and_sort(edge);
-
+		std::vector<std::string> cycle_edges = graph.add_and_sort(edge)
+      
 		if(!cycle_edges.empty()) {
 			//if cycle_edges is not empty, that means a cycle was detected
 			//update results, and then return
