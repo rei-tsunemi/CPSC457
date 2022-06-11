@@ -2,8 +2,6 @@
 
 #include "deadlock_detector.h"
 #include "common.h"
-#include <unordered_map>
-#include <iostream>
 
 class Graph {
 private:
@@ -16,9 +14,15 @@ public:
 		return toposort();
 	}
 
+<<<<<<< Updated upstream
 	void add(std::string e) {
 		std::vector<std::string> r = split(e);
 		//split the string into the starting and end point of the edge. Ex. "2 <- a" would be split into "a" and "2" with "a" being the first element
+=======
+	void add(std::string edge) {
+		std::vector<std::string> r = split(edge);
+		//split the string everywhere there is a whitespace
+>>>>>>> Stashed changes
 
 		std::string start, end;
 		if(r.at(1).compare("->") == 0) {
@@ -33,6 +37,7 @@ public:
 		}
 		//add a * to the appropriate string to indicate a process
 
+<<<<<<< Updated upstream
 		out_counts[start]++;
 		//increment the number of edges coming from the start point
 
@@ -44,19 +49,51 @@ public:
 			out_counts[end] = 0;
 			//if end is not already in the map, create a vector of strings and insert it into the map
 			//also initialize out_counts to 0
+=======
+		long unsigned int s = w2i.get(start);
+		long unsigned int e = w2i.get(end);
+		//get integer values for the strings
+
+		if(s >= conversions.size()) {
+			conversions.push_back(start);
+		}
+		if(e >= conversions.size()) {
+			conversions.push_back(end);
+		}
+		//if the string is a new element, add its string-int conversion to the conversion list
+
+		if (s < adj_list.size()) {
+			out_counts.at(s)++;
+			//increment the number of edges coming from the start point
+>>>>>>> Stashed changes
 		}
 		else {
 			(found->second).push_back(start);
 			//otherwise, just add the new element
 		}
 
+<<<<<<< Updated upstream
 		adj_list[start];
 		//if the starting point is already in the adjacency list, do nothing, 
 		//otherwise initialize it in the map
+=======
+		if(e < adj_list.size()) {
+			adj_list.at(e).push_back(s);
+			//add the new incoming edge
+		}
+		else {
+			std::vector<int> temp;
+			temp.push_back(s);
+			adj_list.push_back(temp);
+			out_counts.push_back(0);
+			//if the ending element was not already in the lists, create entries
+		}
+>>>>>>> Stashed changes
 	}
 
 	//toposort adapted from pseudocode given in hint for Q1
 	std::vector<std::string> toposort() {
+<<<<<<< Updated upstream
 		std::unordered_map<std::string, int> out = out_counts;
 		std::vector<std::string> zeros;
 		int num = out.size();
@@ -82,10 +119,32 @@ public:
 				if(out[n2] == 0) {
 					zeros.push_back(n2);
 					z_size++;
+=======
+		std::vector<int> zeros, out = out_counts;
+		int num_left = out.size();
+
+		for(long unsigned int i = 0; i < out.size(); i++) {
+			if(out.at(i) == 0) {
+				zeros.push_back(i);
+			}
+		}
+
+		while(zeros.size() != 0) {
+			int n = zeros.back();
+			zeros.pop_back();
+			num_left--;
+
+			std::vector<int> incoming = adj_list.at(n);
+			for(int n2: incoming) {
+				out.at(n2)--;
+				if(out.at(n2) == 0) {
+					zeros.push_back(n2);
+>>>>>>> Stashed changes
 				}
 			}
 		}
 
+<<<<<<< Updated upstream
 
 		std::vector<std::string> result;
 		if(num != 0) {
@@ -95,11 +154,25 @@ public:
 					s.pop_back();
 					result.push_back(s);
 					//if the deadlocked element is a process (indicated by *), remove the extra character and add it to the result					
+=======
+		std::vector<std::string> results;
+		if(num_left != 0) {
+			for(long unsigned int i = 0; i < out.size(); i++) {
+				std::string s = conversions.at(i);
+
+				if(out.at(i) != 0 && s.back() == '*') {
+					s.pop_back();
+					results.push_back(s);
+>>>>>>> Stashed changes
 				}
 			}
 		}
 
+<<<<<<< Updated upstream
 		return result;
+=======
+		return results;
+>>>>>>> Stashed changes
 	}
 };
 
@@ -128,9 +201,7 @@ Result detect_deadlock(const std::vector<std::string> & edges)
 	for(long unsigned int i = 0; i < edges.size(); i++) {
 		std::string edge = edges.at(i);
 
-
 		std::vector<std::string> cycle_edges = graph.add_and_sort(edge);
-		//graph.toposort();
 		if(!cycle_edges.empty()) {
 			//if cycle_edges is not empty, that means a cycle was detected
 			//update results, and then return
