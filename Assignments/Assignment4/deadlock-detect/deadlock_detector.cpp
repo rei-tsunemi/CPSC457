@@ -38,10 +38,14 @@ public:
 		int s = w2i.get(start);
 		int e = w2i.get(end);
 		//get integer values for the strings
+		//std::cout<<"start = "<<s<<"\tend = "<<e<<std::endl;
 
-		conversions.push_back(start);
-		conversions.push_back(end);
-		std::cout<<"start: "<<s<<"\tend: "<<e<<std::endl;
+		if(s >= conversions.size()) {
+			conversions.push_back(start);
+		}
+		if(e >= conversions.size()) {
+			conversions.push_back(end);
+		}
 
 		if (s < adj_list.size()) {
 			out_counts.at(s)++;
@@ -62,32 +66,53 @@ public:
 			//if the ending element was not already in the lists, create entries
 		}
 		else {
-			adj_list.back().push_back(s);
+			adj_list.at(e).push_back(s);
 			//otherwise just add the new edge
 		}
-
-	/*	auto found = adj_list.find(end);
-		if(found == adj_list.end()) {
-			std::vector<std::string> temp;
-			temp.emplace_back(start);
-			adj_list.insert({end, temp});
-			out_counts[end] = 0;
-			//if end is not already in the map, create a vector of strings and insert it into the map
-			//also initialize out_counts to 0
-		}
-		else {
-			(found->second).push_back(start);
-			//otherwise, just add the new element
-		}
-
-		adj_list[start];
-		//if the starting point is already in the adjacency list, do nothing,
-		//otherwise initialize it in the map */
 	}
 
 	//toposort adapted from pseudocode given in hint for Q1
 	std::vector<std::string> toposort() {
 		std::vector<int> out = out_counts;
+		std::vector<int> zeros;
+		int num_left = out.size();
+
+		for(int i = 0; i < out.size(); i++) {
+			if(out.at(i) == 0) {
+				zeros.push_back(i);
+			}
+		}
+
+		int z_size = zeros.size();
+		while(z_size != 0) {
+			int n = zeros.back();
+			zeros.pop_back();
+			z_size--;
+			num_left--;
+
+			std::vector<int> incoming = adj_list.at(n);
+			for(int n2: incoming) {
+				out.at(n2)--;
+				if(out.at(n2) == 0) {
+					zeros.push_back(n2);
+					z_size++;
+				}
+			}
+		}
+
+		std::vector<std::string> results;
+		for(int i = 0; i < out.size(); i++) {
+			std::string s = conversions.at(i);
+			//std::cout<<i<<" = "<<s<<std::endl;
+			if(out.at(i) != 0 && s.back() == '*') {
+				s.pop_back();
+				results.push_back(s);
+			}
+		}
+
+		return results;
+
+		/*std::vector<int> out = out_counts;
 		std::vector<int> zeros;
 		int num = out.size();
 
@@ -127,53 +152,7 @@ public:
 			}
 		}
 
-		return result;
-
-/*
-		std::unordered_map<std::string, int> out = out_counts;
-		std::vector<std::string> zeros;
-		int num = out.size();
-
-		for(auto i: out) {
-			if(i.second == 0) {
-				zeros.emplace_back(i.first);
-				//if i has no outgoing edges, add it to the list of vertices with no outgoing edges
-			}
-		}
-
-		int z_size = zeros.size();
-		while(z_size != 0) {
-			std::string n = zeros.back();
-			zeros.pop_back();
-			z_size--;
-			num--;
-
-			std::vector<std::string> incoming_n = adj_list[n];
-			for(std::string n2: incoming_n) {
-				//try use iterator instead of square bracket
-				out[n2]--;
-				if(out[n2] == 0) {
-					zeros.push_back(n2);
-					z_size++;
-				}
-			}
-		}
-
-
-		std::vector<std::string> result;
-		if(num != 0) {
-			for(auto i: out) {
-				std::string s = i.first;
-				if(i.second != 0 && s.back() == '*') {
-					s.pop_back();
-					result.push_back(s);
-					//if the deadlocked element is a process (indicated by *), remove the extra character and add it to the result					
-				}
-			}
-		}
-
-		return result;
-*/
+		return result; */
 	}
 };
 
