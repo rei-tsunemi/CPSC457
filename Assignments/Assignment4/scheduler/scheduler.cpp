@@ -44,7 +44,7 @@ void simulate_rr(
 			//if there are no processes in either the job queue or ready queue, and the cpu is idle, the simulation is done, so break
 		}
 
-		if((seq.empty() || seq.back() != cpu) && seq.size() < max_seq_len) {
+		if((seq.empty() || seq.back() != cpu) && seq.size() < max_seq_len && cur_time != 0) {
 			seq.push_back(cpu);
 			//if a different process is running than what was running previously, add it to the execution sequence
 		}
@@ -111,6 +111,26 @@ void simulate_rr(
 		}
 		else if (cpu == -1) {
 			cur_time++;
+		}
+		else if(rq.empty() && !jq.empty()) {
+			int n_quantum = (processes.at(jq.at(0)).arrival_time - cur_time) / quantum;
+			//std::cout<<"can skip "<<n_quantum<<std::endl;
+
+			if(n_quantum != 0 && (n_quantum * cur_time) <= remaining_bursts.at(cpu)) {
+				cur_time += (n_quantum * quantum);
+				remaining_bursts.at(cpu) -= (n_quantum * quantum);
+			}
+			else if(remaining_bursts.at(cpu) <= quantum) {
+				//std::cout<<"time left for process: "<<remaining_bursts.at(cpu)<<std::endl;
+				cur_time += remaining_bursts.at(cpu);
+				remaining_bursts.at(cpu) = 0;
+
+			}
+			else {
+				//std::cout<<"time left for process: "<<remaining_bursts.at(cpu)<<std::endl;
+				cur_time += quantum;
+				remaining_bursts.at(cpu) -= quantum;
+			}
 		}
 		else if(remaining_bursts.at(cpu) <= quantum) {
 			//std::cout<<"time left for process: "<<remaining_bursts.at(cpu)<<std::endl;
