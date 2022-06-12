@@ -37,7 +37,7 @@ public:
 		int e = w2i.get(end);
 		//get integer values for the strings
 
-		int num_elements = (int)conversions.size();
+		int num_elements = (int) conversions.size();
 
 		if(s >= num_elements) {
 			conversions.push_back(start);
@@ -103,23 +103,21 @@ public:
 		}
 
 		std::vector<std::string> results;
-		if(num_left != 0) {
-			//if there are any elements with > 0 outgoing edges, find them
-			for(long unsigned int i = 0; i < out.size(); i++) {
-				if(out.at(i) != 0) {
-					std::string s = conversions.at(i);
+		//if there are any elements with > 0 outgoing edges, find them
+		for(long unsigned int i = 0; i < out.size(); i++) {
+			if(num_left == 0) {
+				break;
+				//once all the elements have been found, stop searching
+			}
 
-					if(s.back() == '*') {
-						//if the element is a process, add it to the result vector
-						s.pop_back();
-						results.push_back(s);
-						num_left--;
-					}
-				}
+			if(out.at(i) != 0) {
+				std::string s = conversions.at(i);
 
-				if(num_left == 0) {
-					break;
-					//once all the elements have been found, stop searching
+				if(s.back() == '*') {
+					//if the element is a process, add it to the result vector
+					s.pop_back();
+					results.push_back(s);
+					num_left--;
 				}
 			}
 		}
