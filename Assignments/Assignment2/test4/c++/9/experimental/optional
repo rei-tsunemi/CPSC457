@@ -1,0 +1,139 @@
+// <optional> -*- C++ -*-
+
+// Copyright (C) 2013-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file experimental/optional
+ *  This is a TS C++ Library header.
+ */
+
+#ifndef _GLIBCXX_EXPERIMENTAL_OPTIONAL
+#define _GLIBCXX_EXPERIMENTAL_OPTIONAL 1
+
+/**
+ * @defgroup experimental Experimental
+ *
+ * Components specified by various Technical Specifications.
+ *
+ * As indicated by the std::experimental namespace and the  header paths,
+ * the contents of these Technical Specifications are experimental and not
+ * part of the C++ standard. As such the interfaces and implementations may
+ * change in the future, and there is <STRONG> no guarantee of compatibility
+ * between different GCC releases </STRONG> for these features.
+ */
+
+#if __cplusplus >= 201402L
+
+#include <utility>
+#include <type_traits>
+#include <stdexcept>
+#include <new>
+#include <initializer_list>
+#include <bits/functexcept.h>
+#include <bits/functional_hash.h>
+#include <bits/enable_special_members.h>
+#include <experimental/bits/lfts_config.h>
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+namespace experimental
+{
+inline namespace fundamentals_v1
+{
+  /**
+   * @defgroup optional Optional values
+   * @ingroup experimental
+   *
+   * Class template for optional values and surrounding facilities, as
+   * described in n3793 "A proposal to add a utility class to represent
+   * optional objects (Revision 5)".
+   *
+   * @{
+   */
+
+#define __cpp_lib_experimental_optional 201411
+
+  // All subsequent [X.Y.n] references are against n3793.
+
+  // [X.Y.4]
+  template<typename _Tp>
+    class optional;
+
+  // [X.Y.5]
+  /// Tag type for in-place construction.
+  struct in_place_t { };
+
+  /// Tag for in-place construction.
+  constexpr in_place_t in_place { };
+
+  // [X.Y.6]
+  /// Tag type to disengage optional objects.
+  struct nullopt_t
+  {
+    // Do not user-declare default constructor at all for
+    // optional_value = {} syntax to work.
+    // nullopt_t() = delete;
+
+    // Used for constructing nullopt.
+    enum class _Construct { _Token };
+
+    // Must be constexpr for nullopt_t to be literal.
+    explicit constexpr nullopt_t(_Construct) { }
+  };
+
+  // [X.Y.6]
+  /// Tag to disengage optional objects.
+  constexpr nullopt_t nullopt { nullopt_t::_Construct::_Token };
+
+  // [X.Y.7]
+  /**
+   *  @brief Exception class thrown when a disengaged optional object is
+   *  dereferenced.
+   *  @ingroup exceptions
+   */
+  class bad_optional_access : public logic_error
+  {
+  public:
+    bad_optional_access() : logic_error("bad optional access") { }
+
+    // XXX This constructor is non-standard. Should not be inline
+    explicit bad_optional_access(const char* __arg) : logic_error(__arg) { }
+
+    virtual ~bad_optional_access() noexcept = default;
+  };
+
+  void
+  __throw_bad_optional_access(const char*)
+  __attribute__((__noreturn__));
+
+  // XXX Does not belong here.
+  inline void
+  __throw_bad_optional_access(const char* __s)
+  { _GLIBCXX_THROW_OR_ABORT(bad_optional_access(__s)); }
+
+#ifndef __cpp_lib_addressof_constexpr
+  template<typename _Tp, typename = void>
+    struct _Has_addressof_mem : std::false_type { };
+
+  te

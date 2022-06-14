@@ -1,0 +1,155 @@
+// <mutex> -*- C++ -*-
+
+// Copyright (C) 2003-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file include/mutex
+ *  This is a Standard C++ Library header.
+ */
+
+#ifndef _GLIBCXX_MUTEX
+#define _GLIBCXX_MUTEX 1
+
+#pragma GCC system_header
+
+#if __cplusplus < 201103L
+# include <bits/c++0x_warning.h>
+#else
+
+#include <tuple>
+#include <chrono>
+#include <exception>
+#include <type_traits>
+#include <system_error>
+#include <bits/std_mutex.h>
+#include <bits/unique_lock.h>
+#if ! _GTHREAD_USE_MUTEX_TIMEDLOCK
+# include <condition_variable>
+# include <thread>
+#endif
+#ifndef _GLIBCXX_HAVE_TLS
+# include <bits/std_function.h>
+#endif
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+  /**
+   * @ingroup mutexes
+   * @{
+   */
+
+#ifdef _GLIBCXX_HAS_GTHREADS
+
+  // Common base class for std::recursive_mutex and std::recursive_timed_mutex
+  class __recursive_mutex_base
+  {
+  protected:
+    typedef __gthread_recursive_mutex_t		__native_type;
+
+    __recursive_mutex_base(const __recursive_mutex_base&) = delete;
+    __recursive_mutex_base& operator=(const __recursive_mutex_base&) = delete;
+
+#ifdef __GTHREAD_RECURSIVE_MUTEX_INIT
+    __native_type  _M_mutex = __GTHREAD_RECURSIVE_MUTEX_INIT;
+
+    __recursive_mutex_base() = default;
+#else
+    __native_type  _M_mutex;
+
+    __recursive_mutex_base()
+    {
+      // XXX EAGAIN, ENOMEM, EPERM, EBUSY(may), EINVAL(may)
+      __GTHREAD_RECURSIVE_MUTEX_INIT_FUNCTION(&_M_mutex);
+    }
+
+    ~__recursive_mutex_base()
+    { __gthread_recursive_mutex_destroy(&_M_mutex); }
+#endif
+  };
+
+  /// The standard recursive mutex type.
+  class recursive_mutex : private __recursive_mutex_base
+  {
+  public:
+    typedef __native_type* 			native_handle_type;
+
+    recursive_mutex() = default;
+    ~recursive_mutex() = default;
+
+    recursive_mutex(const recursive_mutex&) = delete;
+    recursive_mutex& operator=(const recursive_mutex&) = delete;
+
+    void
+    lock()
+    {
+      int __e = __gthread_recursive_mutex_lock(&_M_mutex);
+
+      // EINVAL, EAGAIN, EBUSY, EINVAL, EDEADLK(may)
+      if (__e)
+	__throw_system_error(__e);
+    }
+
+    bool
+    try_lock() noexcept
+    {
+      // XXX EINVAL, EAGAIN, EBUSY
+      return !__gthread_recursive_mutex_trylock(&_M_mutex);
+    }
+
+    void
+    unlock()
+    {
+      // XXX EINVAL, EAGAIN, EBUSY
+      __gthread_recursive_mutex_unlock(&_M_mutex);
+    }
+
+    native_handle_type
+    native_handle() noexcept
+    { return &_M_mutex; }
+  };
+
+#if _GTHREAD_USE_MUTEX_TIMEDLOCK
+  template<typename _Derived>
+    class __timed_mutex_impl
+    {
+    protected:
+      typedef chrono::high_resolution_clock 	__clock_t;
+
+      template<typename _Rep, typename _Period>
+	bool
+	_M_try_lock_for(const chrono::duration<_Rep, _Period>& __rtime)
+	{
+	  using chrono::steady_clock;
+	  auto __rt = chrono::duration_cast<steady_clock::duration>(__rtime);
+	  if (ratio_greater<steady_clock::period, _Period>())
+	    ++__rt;
+	  return _M_try_lock_until(steady_clock::now() + __rt);
+	}
+
+      template<typename _Duration>
+	bool
+	_M_try_lock_until(const chrono::time_point<__clock_t,
+						   _Duration>& __atime)
+	{
+	  auto __s = chrono::time_point_cast<chron

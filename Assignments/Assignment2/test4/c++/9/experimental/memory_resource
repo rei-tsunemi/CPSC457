@@ -1,0 +1,130 @@
+// <experimental/memory_resource> -*- C++ -*-
+
+// Copyright (C) 2015-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file experimental/memory_resource
+ *  This is a TS C++ Library header.
+ */
+
+#ifndef _GLIBCXX_EXPERIMENTAL_MEMORY_RESOURCE
+#define _GLIBCXX_EXPERIMENTAL_MEMORY_RESOURCE 1
+
+#include <memory>			// align, uses_allocator, __uses_alloc
+#include <experimental/utility>		// pair, experimental::erased_type
+#include <atomic>			// atomic
+#include <new>				// placement new
+#include <cstddef>			// max_align_t
+#include <ext/new_allocator.h>
+#include <debug/assertions.h>
+
+namespace __gnu_cxx _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+  template<typename _Tp> class malloc_allocator;
+_GLIBCXX_END_NAMESPACE_VERSION
+} // namespace __gnu_cxx
+
+namespace std {
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+namespace experimental {
+inline namespace fundamentals_v2 {
+namespace pmr {
+#define __cpp_lib_experimental_memory_resources 201402L
+
+  // Standard memory resources
+
+  // 8.5 Class memory_resource
+  class memory_resource;
+
+  // 8.6 Class template polymorphic_allocator
+  template<typename _Tp>
+    class polymorphic_allocator;
+
+  template<typename _Alloc, typename _Resource = memory_resource>
+    class __resource_adaptor_imp;
+
+  // 8.7 Alias template resource_adaptor
+  template<typename _Alloc>
+    using resource_adaptor = __resource_adaptor_imp<
+      typename allocator_traits<_Alloc>::template rebind_alloc<char>>;
+
+  // 8.8 Global memory resources
+  memory_resource* new_delete_resource() noexcept;
+  memory_resource* null_memory_resource() noexcept;
+  memory_resource* get_default_resource() noexcept;
+  memory_resource* set_default_resource(memory_resource* __r) noexcept;
+
+  // TODO 8.9 Pool resource classes
+
+  class memory_resource
+  {
+    static constexpr size_t _S_max_align = alignof(max_align_t);
+
+  public:
+    memory_resource() = default;
+    memory_resource(const memory_resource&) = default;
+    virtual ~memory_resource() = default;
+
+    memory_resource& operator=(const memory_resource&) = default;
+
+    _GLIBCXX_NODISCARD void*
+    allocate(size_t __bytes, size_t __alignment = _S_max_align)
+    { return do_allocate(__bytes, __alignment); }
+
+    void
+    deallocate(void* __p, size_t __bytes, size_t __alignment = _S_max_align)
+    { return do_deallocate(__p, __bytes, __alignment); }
+
+    bool
+    is_equal(const memory_resource& __other) const noexcept
+    { return do_is_equal(__other); }
+
+  protected:
+    virtual void*
+    do_allocate(size_t __bytes, size_t __alignment) = 0;
+
+    virtual void
+    do_deallocate(void* __p, size_t __bytes, size_t __alignment) = 0;
+
+    virtual bool
+    do_is_equal(const memory_resource& __other) const noexcept = 0;
+  };
+
+  inline bool
+  operator==(const memory_resource& __a, const memory_resource& __b) noexcept
+  { return &__a == &__b || __a.is_equal(__b); }
+
+  inline bool
+  operator!=(const memory_resource& __a, const memory_resource& __b) noexcept
+  { return !(__a == __b); }
+
+
+  template<typename _Tp>
+    class polymorphic_allocator
+    {
+    public:
+      using value_type = _Tp;
+
+      polymorphic_allocator() noexcept
+      : _M

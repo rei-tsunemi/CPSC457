@@ -1,0 +1,136 @@
+// The template and inlines for the -*- C++ -*- valarray class.
+
+// Copyright (C) 1997-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file include/valarray
+ *  This is a Standard C++ Library header.
+ */
+
+// Written by Gabriel Dos Reis <Gabriel.Dos-Reis@DPTMaths.ENS-Cachan.Fr>
+
+#ifndef _GLIBCXX_VALARRAY
+#define _GLIBCXX_VALARRAY 1
+
+#pragma GCC system_header
+
+#include <bits/c++config.h>
+#include <cmath>
+#include <algorithm>
+#include <debug/debug.h>
+#if __cplusplus >= 201103L
+#include <initializer_list>
+#endif
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+  template<class _Clos, typename _Tp>
+    class _Expr;
+
+  template<typename _Tp1, typename _Tp2>
+    class _ValArray;
+
+namespace __detail
+{
+  template<class _Oper, template<class, class> class _Meta, class _Dom>
+    struct _UnClos;
+
+  template<class _Oper,
+        template<class, class> class _Meta1,
+        template<class, class> class _Meta2,
+        class _Dom1, class _Dom2>
+    class _BinClos;
+
+  template<template<class, class> class _Meta, class _Dom>
+    class _SClos;
+
+  template<template<class, class> class _Meta, class _Dom>
+    class _GClos;
+
+  template<template<class, class> class _Meta, class _Dom>
+    class _IClos;
+
+  template<template<class, class> class _Meta, class _Dom>
+    class _ValFunClos;
+
+  template<template<class, class> class _Meta, class _Dom>
+    class _RefFunClos;
+} // namespace __detail
+
+  using __detail::_UnClos;
+  using __detail::_BinClos;
+  using __detail::_SClos;
+  using __detail::_GClos;
+  using __detail::_IClos;
+  using __detail::_ValFunClos;
+  using __detail::_RefFunClos;
+
+  template<class _Tp> class valarray;   // An array of type _Tp
+  class slice;                          // BLAS-like slice out of an array
+  template<class _Tp> class slice_array;
+  class gslice;                         // generalized slice out of an array
+  template<class _Tp> class gslice_array;
+  template<class _Tp> class mask_array;     // masked array
+  template<class _Tp> class indirect_array; // indirected array
+
+_GLIBCXX_END_NAMESPACE_VERSION
+} // namespace
+
+#include <bits/valarray_array.h>
+#include <bits/valarray_before.h>
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+  /**
+   * @defgroup numeric_arrays Numeric Arrays
+   * @ingroup numerics
+   *
+   * Classes and functions for representing and manipulating arrays of elements.
+   * @{
+   */
+
+  /**
+   *  @brief  Smart array designed to support numeric processing.
+   *
+   *  A valarray is an array that provides constraints intended to allow for
+   *  effective optimization of numeric array processing by reducing the
+   *  aliasing that can result from pointer representations.  It represents a
+   *  one-dimensional array from which different multidimensional subsets can
+   *  be accessed and modified.
+   *
+   *  @tparam  _Tp  Type of object in the array.
+   */
+  template<class _Tp>
+    class valarray
+    {
+      template<class _Op>
+	struct _UnaryOp
+	{
+	  typedef typename __fun<_Op, _Tp>::result_type __rt;
+	  typedef _Expr<_UnClos<_Op, _ValArray, _Tp>, __rt> _Rt;
+	};
+    public:
+      typedef _

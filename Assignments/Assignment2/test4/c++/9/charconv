@@ -1,0 +1,140 @@
+// Primitive numeric conversions (to_chars and from_chars) -*- C++ -*-
+
+// Copyright (C) 2017-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file include/charconv
+ *  This is a Standard C++ Library header.
+ */
+
+#ifndef _GLIBCXX_CHARCONV
+#define _GLIBCXX_CHARCONV 1
+
+#pragma GCC system_header
+
+#if __cplusplus >= 201402L
+
+#include <type_traits>
+#include <limits>
+#include <cctype>
+#include <bits/error_constants.h> // for std::errc
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+  /// Result type of std::to_chars
+  struct to_chars_result
+  {
+    char* ptr;
+    errc ec;
+  };
+
+  /// Result type of std::from_chars
+  struct from_chars_result
+  {
+    const char* ptr;
+    errc ec;
+  };
+
+namespace __detail
+{
+  template<typename _Tp, typename... _Types>
+    using __is_one_of = __or_<is_same<_Tp, _Types>...>;
+
+  template<typename _Tp>
+    using __is_int_to_chars_type = __and_<is_integral<_Tp>,
+	  __not_<__is_one_of<_Tp, bool, char16_t, char32_t
+#if _GLIBCXX_USE_WCHAR_T
+	  , wchar_t
+#endif
+#if _GLIBCXX_USE_CHAR8_T
+	  , char8_t
+#endif
+	    >>>;
+
+  template<typename _Tp>
+    using __integer_to_chars_result_type
+      = enable_if_t<__is_int_to_chars_type<_Tp>::value, to_chars_result>;
+
+  template<typename _Tp>
+    using __unsigned_least_t
+      = conditional_t<(sizeof(_Tp) <= sizeof(int)), unsigned int,
+	conditional_t<(sizeof(_Tp) <= sizeof(long)), unsigned long,
+	conditional_t<(sizeof(_Tp) <= sizeof(long long)), unsigned long long,
+#if _GLIBCXX_USE_INT128
+	conditional_t<(sizeof(_Tp) <= sizeof(__int128)), unsigned __int128,
+#endif
+	void
+#if _GLIBCXX_USE_INT128
+	>
+#endif
+	>>>;
+
+  // Generic implementation for arbitrary bases.
+  template<typename _Tp>
+    constexpr unsigned
+    __to_chars_len(_Tp __value, int __base = 10) noexcept
+    {
+      static_assert(is_integral<_Tp>::value, "implementation bug");
+      static_assert(is_unsigned<_Tp>::value, "implementation bug");
+
+      unsigned __n = 1;
+      const int __b2 = __base  * __base;
+      const int __b3 = __b2 * __base;
+      const int __b4 = __b3 * __base;
+      for (;;)
+	{
+	  if (__value < __base) return __n;
+	  if (__value < __b2) return __n + 1;
+	  if (__value < __b3) return __n + 2;
+	  if (__value < __b4) return __n + 3;
+	  __value /= (unsigned)__b4;
+	  __n += 4;
+	}
+    }
+
+  template<typename _Tp>
+    constexpr unsigned
+    __to_chars_len_2(_Tp __value) noexcept
+    {
+      static_assert(is_integral<_Tp>::value, "implementation bug");
+      static_assert(is_unsigned<_Tp>::value, "implementation bug");
+
+      constexpr size_t __nbits = __CHAR_BIT__ * sizeof(_Tp);
+
+      // N.B. __builtin_clzll is undefined if __value == 0, but std::to_chars
+      // handles zero values directly.
+
+      // For sizeof(_Tp) > 1 this is an order of magnitude faster than
+      // the generic __to_chars_len.
+      return __nbits
+	- (__builtin_clzll(__value)
+	    - ((__CHAR_BIT__ * sizeof(long long)) - __nbits));
+    }
+
+  template<typename _Tp>
+    constexpr unsigned
+    __to_chars_len_8(_Tp __value) noexcept
+    {
+      static_assert(is_integral<_Tp>::value, "implementation bug");
+      static_assert(is_unsigned<_Tp>::

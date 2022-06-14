@@ -1,0 +1,154 @@
+// -*- C++ -*- C forwarding header.
+
+// Copyright (C) 1997-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file include/cmath
+ *  This is a Standard C++ Library file.  You should @c \#include this file
+ *  in your programs, rather than any of the @a *.h implementation files.
+ *
+ *  This is the C++ version of the Standard C Library header @c math.h,
+ *  and its contents are (mostly) the same as that header, but are all
+ *  contained in the namespace @c std (except for names which are defined
+ *  as macros in C).
+ */
+
+//
+// ISO C++ 14882: 26.5  C library
+//
+
+#pragma GCC system_header
+
+#include <bits/c++config.h>
+#include <bits/cpp_type_traits.h>
+#include <ext/type_traits.h>
+#define _GLIBCXX_INCLUDE_NEXT_C_HEADERS
+#include_next <math.h>
+#undef _GLIBCXX_INCLUDE_NEXT_C_HEADERS
+#include <bits/std_abs.h>
+
+#ifndef _GLIBCXX_CMATH
+#define _GLIBCXX_CMATH 1
+
+// Get rid of those macros defined in <math.h> in lieu of real functions.
+#undef div
+#undef acos
+#undef asin
+#undef atan
+#undef atan2
+#undef ceil
+#undef cos
+#undef cosh
+#undef exp
+#undef fabs
+#undef floor
+#undef fmod
+#undef frexp
+#undef ldexp
+#undef log
+#undef log10
+#undef modf
+#undef pow
+#undef sin
+#undef sinh
+#undef sqrt
+#undef tan
+#undef tanh
+
+extern "C++"
+{
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+  using ::acos;
+
+#ifndef __CORRECT_ISO_CPP_MATH_H_PROTO
+  inline _GLIBCXX_CONSTEXPR float
+  acos(float __x)
+  { return __builtin_acosf(__x); }
+
+  inline _GLIBCXX_CONSTEXPR long double
+  acos(long double __x)
+  { return __builtin_acosl(__x); }
+#endif
+
+  template<typename _Tp>
+    inline _GLIBCXX_CONSTEXPR
+    typename __gnu_cxx::__enable_if<__is_integer<_Tp>::__value, 
+                                    double>::__type
+    acos(_Tp __x)
+    { return __builtin_acos(__x); }
+
+  using ::asin;
+
+#ifndef __CORRECT_ISO_CPP_MATH_H_PROTO
+  inline _GLIBCXX_CONSTEXPR float
+  asin(float __x)
+  { return __builtin_asinf(__x); }
+
+  inline _GLIBCXX_CONSTEXPR long double
+  asin(long double __x)
+  { return __builtin_asinl(__x); }
+#endif
+
+  template<typename _Tp>
+    inline _GLIBCXX_CONSTEXPR
+    typename __gnu_cxx::__enable_if<__is_integer<_Tp>::__value,
+                                    double>::__type
+    asin(_Tp __x)
+    { return __builtin_asin(__x); }
+
+  using ::atan;
+
+#ifndef __CORRECT_ISO_CPP_MATH_H_PROTO
+  inline _GLIBCXX_CONSTEXPR float
+  atan(float __x)
+  { return __builtin_atanf(__x); }
+
+  inline _GLIBCXX_CONSTEXPR long double
+  atan(long double __x)
+  { return __builtin_atanl(__x); }
+#endif
+
+  template<typename _Tp>
+    inline _GLIBCXX_CONSTEXPR
+    typename __gnu_cxx::__enable_if<__is_integer<_Tp>::__value,
+                                    double>::__type
+    atan(_Tp __x)
+    { return __builtin_atan(__x); }
+
+  using ::atan2;
+
+#ifndef __CORRECT_ISO_CPP_MATH_H_PROTO
+  inline _GLIBCXX_CONSTEXPR float
+  atan2(float __y, float __x)
+  { return __builtin_atan2f(__y, __x); }
+
+  inline _GLIBCXX_CONSTEXPR long double
+  atan2(long double __y, long double __x)
+  { return __builtin_atan2l(__y, __x); }
+#endif
+
+  template<typename _Tp, typename _Up>
+    inline _GLIBCXX_CONSTEXPR
+    typename __gnu_cxx::

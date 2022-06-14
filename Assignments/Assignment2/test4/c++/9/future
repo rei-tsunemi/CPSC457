@@ -1,0 +1,163 @@
+// <future> -*- C++ -*-
+
+// Copyright (C) 2009-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file include/future
+ *  This is a Standard C++ Library header.
+ */
+
+#ifndef _GLIBCXX_FUTURE
+#define _GLIBCXX_FUTURE 1
+
+#pragma GCC system_header
+
+#if __cplusplus < 201103L
+# include <bits/c++0x_warning.h>
+#else
+
+#include <mutex>
+#include <thread>
+#include <condition_variable>
+#include <system_error>
+#include <atomic>
+#include <bits/atomic_futex.h>
+#include <bits/functexcept.h>
+#include <bits/invoke.h>
+#include <bits/unique_ptr.h>
+#include <bits/shared_ptr.h>
+#include <bits/std_function.h>
+#include <bits/uses_allocator.h>
+#include <bits/allocated_ptr.h>
+#include <ext/aligned_buffer.h>
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+  /**
+   * @defgroup futures Futures
+   * @ingroup concurrency
+   *
+   * Classes for futures support.
+   * @{
+   */
+
+  /// Error code for futures
+  enum class future_errc
+  {
+    future_already_retrieved = 1,
+    promise_already_satisfied,
+    no_state,
+    broken_promise
+  };
+
+  /// Specialization.
+  template<>
+    struct is_error_code_enum<future_errc> : public true_type { };
+
+  /// Points to a statically-allocated object derived from error_category.
+  const error_category&
+  future_category() noexcept;
+
+  /// Overload for make_error_code.
+  inline error_code
+  make_error_code(future_errc __errc) noexcept
+  { return error_code(static_cast<int>(__errc), future_category()); }
+
+  /// Overload for make_error_condition.
+  inline error_condition
+  make_error_condition(future_errc __errc) noexcept
+  { return error_condition(static_cast<int>(__errc), future_category()); }
+
+  /**
+   *  @brief Exception type thrown by futures.
+   *  @ingroup exceptions
+   */
+  class future_error : public logic_error
+  {
+  public:
+    explicit
+    future_error(future_errc __errc)
+    : future_error(std::make_error_code(__errc))
+    { }
+
+    virtual ~future_error() noexcept;
+
+    virtual const char*
+    what() const noexcept;
+
+    const error_code&
+    code() const noexcept { return _M_code; }
+
+  private:
+    explicit
+    future_error(error_code __ec)
+    : logic_error("std::future_error: " + __ec.message()), _M_code(__ec)
+    { }
+
+    friend void __throw_future_error(int);
+
+    error_code 			_M_code;
+  };
+
+  // Forward declarations.
+  template<typename _Res>
+    class future;
+
+  template<typename _Res>
+    class shared_future;
+
+  template<typename _Signature>
+    class packaged_task;
+
+  template<typename _Res>
+    class promise;
+
+  /// Launch code for futures
+  enum class launch
+  {
+    async = 1,
+    deferred = 2
+  };
+
+  constexpr launch operator&(launch __x, launch __y)
+  {
+    return static_cast<launch>(
+	static_cast<int>(__x) & static_cast<int>(__y));
+  }
+
+  constexpr launch operator|(launch __x, launch __y)
+  {
+    return static_cast<launch>(
+	static_cast<int>(__x) | static_cast<int>(__y));
+  }
+
+  constexpr launch operator^(launch __x, launch __y)
+  {
+    return static_cast<launch>(
+	static_cast<int>(__x) ^ static_cast<int>(__y));
+  }
+
+  constexpr launch operator~(launch __x)
+  { return static_cast<launch>(~static_cast<int>(__x)); }
+

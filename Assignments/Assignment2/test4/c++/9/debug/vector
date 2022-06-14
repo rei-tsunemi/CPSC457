@@ -1,0 +1,132 @@
+// Debugging vector implementation -*- C++ -*-
+
+// Copyright (C) 2003-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file debug/vector
+ *  This file is a GNU debug extension to the Standard C++ Library.
+ */
+
+#ifndef _GLIBCXX_DEBUG_VECTOR
+#define _GLIBCXX_DEBUG_VECTOR 1
+
+#pragma GCC system_header
+
+#include <bits/c++config.h>
+namespace std _GLIBCXX_VISIBILITY(default) { namespace __debug {
+  template<typename _Tp, typename _Allocator> class vector;
+} } // namespace std::__debug
+
+#include <vector>
+#include <utility>
+#include <debug/safe_sequence.h>
+#include <debug/safe_container.h>
+#include <debug/safe_iterator.h>
+
+namespace __gnu_debug
+{
+  /** @brief Base class for Debug Mode vector.
+   *
+   * Adds information about the guaranteed capacity, which is useful for
+   * detecting code which relies on non-portable implementation details of
+   * the libstdc++ reallocation policy.
+   */
+  template<typename _SafeSequence,
+	   typename _BaseSequence>
+    class _Safe_vector
+    {
+      typedef typename _BaseSequence::size_type size_type;
+
+      const _SafeSequence&
+      _M_seq() const { return *static_cast<const _SafeSequence*>(this); }
+
+    protected:
+      _Safe_vector() _GLIBCXX_NOEXCEPT
+	: _M_guaranteed_capacity(0)
+      { _M_update_guaranteed_capacity(); }
+
+      _Safe_vector(const _Safe_vector&) _GLIBCXX_NOEXCEPT
+	: _M_guaranteed_capacity(0)
+      { _M_update_guaranteed_capacity(); }
+
+      _Safe_vector(size_type __n) _GLIBCXX_NOEXCEPT
+	: _M_guaranteed_capacity(__n)
+      { }
+
+#if __cplusplus >= 201103L
+      _Safe_vector(_Safe_vector&& __x) noexcept
+	: _Safe_vector()
+      { __x._M_guaranteed_capacity = 0; }
+
+      _Safe_vector&
+      operator=(const _Safe_vector&) noexcept
+      {
+	_M_update_guaranteed_capacity();
+	return *this;
+      }
+
+      _Safe_vector&
+      operator=(_Safe_vector&& __x) noexcept
+      {
+	_M_update_guaranteed_capacity();
+	__x._M_guaranteed_capacity = 0;
+	return *this;
+      }
+#endif
+
+      size_type _M_guaranteed_capacity;
+
+      bool
+      _M_requires_reallocation(size_type __elements) const _GLIBCXX_NOEXCEPT
+      { return __elements > _M_seq().capacity(); }
+
+      void
+      _M_update_guaranteed_capacity() _GLIBCXX_NOEXCEPT
+      {
+	if (_M_seq().size() > _M_guaranteed_capacity)
+	  _M_guaranteed_capacity = _M_seq().size();
+      }
+    };
+}
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+namespace __debug
+{
+  /// Class std::vector with safety/checking/debug instrumentation.
+  template<typename _Tp,
+	   typename _Allocator = std::allocator<_Tp> >
+    class vector
+    : public __gnu_debug::_Safe_container<
+	vector<_Tp, _Allocator>, _Allocator, __gnu_debug::_Safe_sequence>,
+      public _GLIBCXX_STD_C::vector<_Tp, _Allocator>,
+      public __gnu_debug::_Safe_vector<
+	vector<_Tp, _Allocator>,
+	_GLIBCXX_STD_C::vector<_Tp, _Allocator> >
+    {
+      typedef _GLIBCXX_STD_C::vector<_Tp, _Allocator>		_Base;
+      typedef __gnu_debug::_Safe_container<
+	vector, _Allocator, __gnu_debug::_Safe_sequence>	_Safe;
+      typedef __gnu_debug::_Safe_vector<vector, _Base>		_Safe_vector;
+
+      typedef typename _Base::iterator		_Base_iterator;
+      typedef typename _Ba

@@ -1,0 +1,108 @@
+// File based streams -*- C++ -*-
+
+// Copyright (C) 1997-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file include/fstream
+ *  This is a Standard C++ Library header.
+ */
+
+//
+// ISO C++ 14882: 27.8  File-based streams
+//
+
+#ifndef _GLIBCXX_FSTREAM
+#define _GLIBCXX_FSTREAM 1
+
+#pragma GCC system_header
+
+#include <istream>
+#include <ostream>
+#include <bits/codecvt.h>
+#include <cstdio>             // For BUFSIZ
+#include <bits/basic_file.h>  // For __basic_file, __c_lock
+#if __cplusplus >= 201103L
+#include <string>             // For std::string overloads.
+#endif
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+#if __cplusplus >= 201703L
+  // Enable if _Path is a filesystem::path or experimental::filesystem::path
+  template<typename _Path, typename _Result = _Path, typename _Path2
+	   = decltype(std::declval<_Path&>().make_preferred().filename())>
+    using _If_fs_path = enable_if_t<is_same_v<_Path, _Path2>, _Result>;
+#endif // C++17
+
+
+  // [27.8.1.1] template class basic_filebuf
+  /**
+   *  @brief  The actual work of input and output (for files).
+   *  @ingroup io
+   *
+   *  @tparam _CharT  Type of character stream.
+   *  @tparam _Traits  Traits for character type, defaults to
+   *                   char_traits<_CharT>.
+   *
+   *  This class associates both its input and output sequence with an
+   *  external disk file, and maintains a joint file position for both
+   *  sequences.  Many of its semantics are described in terms of similar
+   *  behavior in the Standard C Library's @c FILE streams.
+   *
+   *  Requirements on traits_type, specific to this class:
+   *  - traits_type::pos_type must be fpos<traits_type::state_type>
+   *  - traits_type::off_type must be streamoff
+   *  - traits_type::state_type must be Assignable and DefaultConstructible,
+   *  - traits_type::state_type() must be the initial state for codecvt.
+   */
+  template<typename _CharT, typename _Traits>
+    class basic_filebuf : public basic_streambuf<_CharT, _Traits>
+    {
+#if __cplusplus >= 201103L
+      template<typename _Tp>
+	using __chk_state = __and_<is_copy_assignable<_Tp>,
+				   is_copy_constructible<_Tp>,
+				   is_default_constructible<_Tp>>;
+
+      static_assert(__chk_state<typename _Traits::state_type>::value,
+		    "state_type must be CopyAssignable, CopyConstructible"
+		    " and DefaultConstructible");
+
+      static_assert(is_same<typename _Traits::pos_type,
+			    fpos<typename _Traits::state_type>>::value,
+		    "pos_type must be fpos<state_type>");
+#endif
+    public:
+      // Types:
+      typedef _CharT                     	        char_type;
+      typedef _Traits                    	        traits_type;
+      typedef typename traits_type::int_type 		int_type;
+      typedef typename traits_type::pos_type 		pos_type;
+      typedef typename traits_type::off_type 		off_type;
+
+      typedef basic_streambuf<char_type, traits_type>  	__streambuf_type;
+      typedef basic_filebuf<char_type, traits_type>     __filebuf_type;
+      typedef __basic_file<char>		        __file_type;
+      typedef typename traits_type::state_type          __state_type;
+      typedef

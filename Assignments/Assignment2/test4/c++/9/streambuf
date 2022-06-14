@@ -1,0 +1,99 @@
+// Stream buffer classes -*- C++ -*-
+
+// Copyright (C) 1997-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file include/streambuf
+ *  This is a Standard C++ Library header.
+ */
+
+//
+// ISO C++ 14882: 27.5  Stream buffers
+//
+
+#ifndef _GLIBXX_STREAMBUF
+#define _GLIBXX_STREAMBUF 1
+
+#pragma GCC system_header
+
+#include <bits/c++config.h>
+#include <iosfwd>
+#include <bits/localefwd.h>
+#include <bits/ios_base.h>
+#include <bits/cpp_type_traits.h>
+#include <ext/type_traits.h>
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+#define _IsUnused __attribute__ ((__unused__))
+
+  template<typename _CharT, typename _Traits>
+    streamsize
+    __copy_streambufs_eof(basic_streambuf<_CharT, _Traits>*,
+			  basic_streambuf<_CharT, _Traits>*, bool&);
+
+  /**
+   *  @brief  The actual work of input and output (interface).
+   *  @ingroup io
+   *
+   *  @tparam _CharT  Type of character stream.
+   *  @tparam _Traits  Traits for character type, defaults to
+   *                   char_traits<_CharT>.
+   *
+   *  This is a base class.  Derived stream buffers each control a
+   *  pair of character sequences:  one for input, and one for output.
+   *
+   *  Section [27.5.1] of the standard describes the requirements and
+   *  behavior of stream buffer classes.  That section (three paragraphs)
+   *  is reproduced here, for simplicity and accuracy.
+   *
+   *  -# Stream buffers can impose various constraints on the sequences
+   *     they control.  Some constraints are:
+   *     - The controlled input sequence can be not readable.
+   *     - The controlled output sequence can be not writable.
+   *     - The controlled sequences can be associated with the contents of
+   *       other representations for character sequences, such as external
+   *       files.
+   *     - The controlled sequences can support operations @e directly to or
+   *       from associated sequences.
+   *     - The controlled sequences can impose limitations on how the
+   *       program can read characters from a sequence, write characters to
+   *       a sequence, put characters back into an input sequence, or alter
+   *       the stream position.
+   *     .
+   *  -# Each sequence is characterized by three pointers which, if non-null,
+   *     all point into the same @c charT array object.  The array object
+   *     represents, at any moment, a (sub)sequence of characters from the
+   *     sequence.  Operations performed on a sequence alter the values
+   *     stored in these pointers, perform reads and writes directly to or
+   *     from associated sequences, and alter <em>the stream position</em> and
+   *     conversion state as needed to maintain this subsequence relationship.
+   *     The three pointers are:
+   *     - the <em>beginning pointer</em>, or lowest element address in the
+   *       array (called @e xbeg here);
+   *     - the <em>next pointer</em>, or next element address that is a
+   *       current candidate for reading or writing (called @e xnext here);
+   *     - the <em>end pointer</em>, or first element address beyond the
+   *       end of the array (called @e xend here).
+   *     

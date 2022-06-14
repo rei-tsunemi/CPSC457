@@ -1,0 +1,140 @@
+// <condition_variable> -*- C++ -*-
+
+// Copyright (C) 2008-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file include/condition_variable
+ *  This is a Standard C++ Library header.
+ */
+
+#ifndef _GLIBCXX_CONDITION_VARIABLE
+#define _GLIBCXX_CONDITION_VARIABLE 1
+
+#pragma GCC system_header
+
+#if __cplusplus < 201103L
+# include <bits/c++0x_warning.h>
+#else
+
+#include <chrono>
+#include <bits/std_mutex.h>
+#include <bits/unique_lock.h>
+#include <ext/concurrence.h>
+#include <bits/alloc_traits.h>
+#include <bits/allocator.h>
+#include <bits/unique_ptr.h>
+#include <bits/shared_ptr.h>
+#include <bits/cxxabi_forced.h>
+
+#if defined(_GLIBCXX_HAS_GTHREADS)
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+  /**
+   * @defgroup condition_variables Condition Variables
+   * @ingroup concurrency
+   *
+   * Classes for condition_variable support.
+   * @{
+   */
+
+  /// cv_status
+  enum class cv_status { no_timeout, timeout };
+
+  /// condition_variable
+  class condition_variable
+  {
+    typedef chrono::system_clock	__clock_t;
+    typedef chrono::steady_clock	__steady_clock_t;
+    typedef __gthread_cond_t		__native_type;
+
+#ifdef __GTHREAD_COND_INIT
+    __native_type			_M_cond = __GTHREAD_COND_INIT;
+#else
+    __native_type			_M_cond;
+#endif
+
+  public:
+    typedef __native_type* 		native_handle_type;
+
+    condition_variable() noexcept;
+    ~condition_variable() noexcept;
+
+    condition_variable(const condition_variable&) = delete;
+    condition_variable& operator=(const condition_variable&) = delete;
+
+    void
+    notify_one() noexcept;
+
+    void
+    notify_all() noexcept;
+
+    void
+    wait(unique_lock<mutex>& __lock) noexcept;
+
+    template<typename _Predicate>
+      void
+      wait(unique_lock<mutex>& __lock, _Predicate __p)
+      {
+	while (!__p())
+	  wait(__lock);
+      }
+
+    template<typename _Duration>
+      cv_status
+      wait_until(unique_lock<mutex>& __lock,
+		 const chrono::time_point<__clock_t, _Duration>& __atime)
+      { return __wait_until_impl(__lock, __atime); }
+
+    template<typename _Clock, typename _Duration>
+      cv_status
+      wait_until(unique_lock<mutex>& __lock,
+		 const chrono::time_point<_Clock, _Duration>& __atime)
+      {
+	// DR 887 - Sync unknown clock to known clock.
+	const typename _Clock::time_point __c_entry = _Clock::now();
+	const __clock_t::time_point __s_entry = __clock_t::now();
+	const auto __delta = __atime - __c_entry;
+	const auto __s_atime = __s_entry + __delta;
+
+	if (__wait_until_impl(__lock, __s_atime) == cv_status::no_timeout)
+	  return cv_status::no_timeout;
+	// We got a timeout when measured against __clock_t but
+	// we need to check against the caller-supplied clock
+	// to tell whether we should return a timeout.
+	if (_Clock::now() < __atime)
+	  return cv_status::no_timeout;
+	return cv_status::timeout;
+      }
+
+    template<typename _Clock, typename _Duration, typename _Predicate>
+      bool
+      wait_until(unique_lock<mutex>& __lock,
+		 const chrono::time_point<_Clock, _Duration>& __atime,
+		 _Predicate __p)
+      {
+	while (!__p())
+	  if (wait_until(__lock, __atime) == cv_status::timeout)
+	    return __p();
+	return t

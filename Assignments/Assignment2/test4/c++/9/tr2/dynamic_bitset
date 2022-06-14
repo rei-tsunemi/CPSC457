@@ -1,0 +1,138 @@
+// TR2 <dynamic_bitset> -*- C++ -*-
+
+// Copyright (C) 2009-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file tr2/dynamic_bitset
+ *  This is a TR2 C++ Library header.
+ */
+
+#ifndef _GLIBCXX_TR2_DYNAMIC_BITSET
+#define _GLIBCXX_TR2_DYNAMIC_BITSET 1
+
+#pragma GCC system_header
+
+#include <limits>
+#include <vector>
+#include <string>
+#include <istream>
+#include <bits/functexcept.h>
+#include <bits/stl_algo.h>	// For fill
+#include <bits/cxxabi_forced.h>
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+namespace tr2
+{
+  /**
+   *  @defgroup dynamic_bitset Dynamic Bitset.
+   *  @ingroup extensions
+   *
+   *  @{
+   */
+
+  /**
+   *  Base class, general case.
+   *
+   *  See documentation for dynamic_bitset.
+   */
+  template<typename _WordT = unsigned long long,
+	   typename _Alloc = std::allocator<_WordT>>
+    struct __dynamic_bitset_base
+    {
+      static_assert(std::is_unsigned<_WordT>::value, "template argument "
+		    "_WordT not an unsigned integral type");
+
+      typedef _WordT block_type;
+      typedef _Alloc allocator_type;
+      typedef size_t size_type;
+
+      static const size_type _S_bits_per_block = __CHAR_BIT__ * sizeof(block_type);
+      static const size_type npos = static_cast<size_type>(-1);
+
+      /// 0 is the least significant word.
+      std::vector<block_type, allocator_type> _M_w;
+
+      explicit
+      __dynamic_bitset_base(const allocator_type& __alloc)
+      : _M_w(__alloc)
+      { }
+
+      __dynamic_bitset_base() = default;
+      __dynamic_bitset_base(const __dynamic_bitset_base&) = default;
+      __dynamic_bitset_base(__dynamic_bitset_base&& __b) = default;
+      __dynamic_bitset_base& operator=(const __dynamic_bitset_base&) = default;
+      __dynamic_bitset_base& operator=(__dynamic_bitset_base&&) = default;
+      ~__dynamic_bitset_base() = default;
+
+      explicit
+      __dynamic_bitset_base(size_type __nbits, unsigned long long __val = 0ULL,
+			   const allocator_type& __alloc = allocator_type())
+      : _M_w(__nbits / _S_bits_per_block + (__nbits % _S_bits_per_block > 0),
+	     block_type(0), __alloc)
+      {
+	if (__nbits < std::numeric_limits<decltype(__val)>::digits)
+	  __val &= ~(-1ULL << __nbits);
+	if (__val == 0)
+	  return;
+
+	if _GLIBCXX17_CONSTEXPR (sizeof(__val) == sizeof(block_type))
+	  _M_w[0] = __val;
+	else
+	  {
+	    const size_t __n
+	      = std::min(_M_w.size(), sizeof(__val) / sizeof(block_type));
+	    for (size_t __i = 0; __val && __i < __n; ++__i)
+	      {
+		_M_w[__i] = static_cast<block_type>(__val);
+		__val >>= _S_bits_per_block;
+	      }
+	  }
+      }
+
+      void
+      _M_swap(__dynamic_bitset_base& __b) noexcept
+      { this->_M_w.swap(__b._M_w); }
+
+      void
+      _M_clear() noexcept
+      { this->_M_w.clear(); }
+
+      void
+      _M_resize(size_t __nbits, bool __value)
+      {
+	size_t __sz = __nbits / _S_bits_per_block;
+	if (__nbits % _S_bits_per_block > 0)
+	  ++__sz;
+	if (__sz != this->_M_w.size())
+	  {
+	    block_type __val = 0;
+	    if (__value)
+	      __val = std::numeric_limits<block_type>::max();
+	    this->_M_w.resize(__sz, __val);
+	  }
+      }
+
+      allocator_type
+      _M_get_allocator()

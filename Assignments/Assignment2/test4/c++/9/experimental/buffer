@@ -1,0 +1,160 @@
+// <experimental/buffer> -*- C++ -*-
+
+// Copyright (C) 2015-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file experimental/buffer
+ *  This is a TS C++ Library header.
+ */
+
+#ifndef _GLIBCXX_EXPERIMENTAL_BUFFER
+#define _GLIBCXX_EXPERIMENTAL_BUFFER 1
+
+#pragma GCC system_header
+
+#if __cplusplus >= 201402L
+
+#include <array>
+#include <string>
+#include <system_error>
+#include <vector>
+#include <cstring>
+#include <experimental/string_view>
+#include <experimental/bits/net.h>
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+namespace experimental
+{
+namespace net
+{
+inline namespace v1
+{
+
+  /**
+   * @ingroup networking
+   * @{
+   */
+
+  enum class stream_errc {    // TODO decide values
+    eof = 1,
+    not_found = 2
+  };
+
+  const error_category& stream_category() noexcept // TODO not inline
+  {
+    struct __cat : error_category
+    {
+      const char* name() const noexcept { return "stream"; }
+
+      std::string message(int __e) const
+      {
+	if (__e == (int)stream_errc::eof)
+	  return "EOF";
+	else if (__e == (int)stream_errc::not_found)
+	  return "not found";
+	return "stream";
+      }
+
+      virtual void __message(int) { } // TODO dual ABI XXX
+    };
+    static __cat __c;
+    return __c;
+  }
+
+  inline error_code
+  make_error_code(stream_errc __e) noexcept
+  { return error_code(static_cast<int>(__e), stream_category()); }
+
+  inline error_condition
+  make_error_condition(stream_errc __e) noexcept
+  { return error_condition(static_cast<int>(__e), stream_category()); }
+
+  class mutable_buffer
+  {
+  public:
+    // constructors:
+    mutable_buffer() noexcept : _M_data(), _M_size() { }
+
+    mutable_buffer(void* __p, size_t __n) noexcept
+    : _M_data(__p), _M_size(__n) { }
+
+    // members:
+    void* data() const noexcept { return _M_data; }
+    size_t size() const noexcept { return _M_size; }
+
+  private:
+    void*	_M_data;
+    size_t	_M_size;
+  };
+
+  class const_buffer
+  {
+  public:
+    // constructors:
+    const_buffer() noexcept : _M_data(), _M_size() { }
+
+    const_buffer(const void* __p, size_t __n) noexcept
+    : _M_data(__p), _M_size(__n) { }
+
+    const_buffer(const mutable_buffer& __b) noexcept
+    : _M_data(__b.data()), _M_size(__b.size()) { }
+
+    // members:
+    const void* data() const noexcept { return _M_data; }
+    size_t size() const noexcept { return _M_size; }
+
+  private:
+    const void*	_M_data;
+    size_t	_M_size;
+  };
+
+
+  /** @brief buffer sequence access
+   *
+   * Uniform access to types that meet the BufferSequence requirements.
+   * @{
+   */
+
+  inline const mutable_buffer*
+  buffer_sequence_begin(const mutable_buffer& __b)
+  { return std::addressof(__b); }
+
+  inline const const_buffer*
+  buffer_sequence_begin(const const_buffer& __b)
+  { return std::addressof(__b); }
+
+  inline const mutable_buffer*
+  buffer_sequence_end(const mutable_buffer& __b)
+  { return std::addressof(__b) + 1; }
+
+  inline const const_buffer*
+  buffer_sequence_end(const const_buffer& __b)
+  { return std::addressof(__b) + 1; }
+
+  template<typename _Cont>
+    auto
+    buffer_sequence_begin(_Cont& __c) -> decltype(__c.begin())
+    { return __c.begin(); }
+
+  te

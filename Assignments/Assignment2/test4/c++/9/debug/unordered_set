@@ -1,0 +1,106 @@
+// Debugging unordered_set/unordered_multiset implementation -*- C++ -*-
+
+// Copyright (C) 2003-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file debug/unordered_set
+ *  This file is a GNU debug extension to the Standard C++ Library.
+ */
+
+#ifndef _GLIBCXX_DEBUG_UNORDERED_SET
+#define _GLIBCXX_DEBUG_UNORDERED_SET 1
+
+#pragma GCC system_header
+
+#if __cplusplus < 201103L
+# include <bits/c++0x_warning.h>
+#else
+# include <bits/c++config.h>
+namespace std _GLIBCXX_VISIBILITY(default) { namespace __debug {
+  template<typename _Key, typename _Hash, typename _Pred, typename _Allocator>
+    class unordered_set;
+  template<typename _Key, typename _Hash, typename _Pred, typename _Allocator>
+    class unordered_multiset;
+} } // namespace std::__debug
+# include <unordered_set>
+
+#include <debug/safe_unordered_container.h>
+#include <debug/safe_container.h>
+#include <debug/safe_iterator.h>
+#include <debug/safe_local_iterator.h>
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+namespace __debug
+{
+  /// Class std::unordered_set with safety/checking/debug instrumentation.
+  template<typename _Value,
+	   typename _Hash = std::hash<_Value>,
+	   typename _Pred = std::equal_to<_Value>,
+	   typename _Alloc = std::allocator<_Value> >
+    class unordered_set
+    : public __gnu_debug::_Safe_container<
+	unordered_set<_Value, _Hash, _Pred, _Alloc>, _Alloc,
+	__gnu_debug::_Safe_unordered_container>,
+      public _GLIBCXX_STD_C::unordered_set<_Value, _Hash, _Pred, _Alloc>
+    {
+      typedef _GLIBCXX_STD_C::unordered_set<
+	_Value, _Hash, _Pred, _Alloc>					_Base;
+      typedef __gnu_debug::_Safe_container<
+	unordered_set, _Alloc, __gnu_debug::_Safe_unordered_container>	_Safe;
+
+      typedef typename _Base::const_iterator	   _Base_const_iterator;
+      typedef typename _Base::iterator		   _Base_iterator;
+      typedef typename _Base::const_local_iterator _Base_const_local_iterator;
+      typedef typename _Base::local_iterator	   _Base_local_iterator;
+
+      template<typename _ItT, typename _SeqT, typename _CatT>
+	friend class ::__gnu_debug::_Safe_iterator;
+      template<typename _ItT, typename _SeqT>
+	friend class ::__gnu_debug::_Safe_local_iterator;
+
+    public:
+      typedef typename _Base::size_type			size_type;
+      typedef typename _Base::hasher			hasher;
+      typedef typename _Base::key_equal			key_equal;
+      typedef typename _Base::allocator_type		allocator_type;
+
+      typedef typename _Base::key_type			key_type;
+      typedef typename _Base::value_type		value_type;
+
+      typedef __gnu_debug::_Safe_iterator<
+	_Base_iterator, unordered_set>			iterator;
+      typedef __gnu_debug::_Safe_iterator<
+	_Base_const_iterator, unordered_set>		const_iterator;
+      typedef __gnu_debug::_Safe_local_iterator<
+	_Base_local_iterator, unordered_set>		local_iterator;
+      typedef __gnu_debug::_Safe_local_iterator<
+	_Base_const_local_iterator, unordered_set>	const_local_iterator;
+
+      unordered_set() = default;
+
+      explicit
+      unordered_set(size_type __n,
+		    const hasher& __hf = hasher(),
+		    const key_equal& __eql = key_equal(),
+		    const allocator_type& __a = allocator_type())
+      : _Ba

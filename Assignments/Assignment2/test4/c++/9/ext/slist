@@ -1,0 +1,137 @@
+// Singly-linked list implementation -*- C++ -*-
+
+// Copyright (C) 2001-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/*
+ * Copyright (c) 1997
+ * Silicon Graphics Computer Systems, Inc.
+ *
+ * Permission to use, copy, modify, distribute and sell this software
+ * and its documentation for any purpose is hereby granted without fee,
+ * provided that the above copyright notice appear in all copies and
+ * that both that copyright notice and this permission notice appear
+ * in supporting documentation.  Silicon Graphics makes no
+ * representations about the suitability of this software for any
+ * purpose.  It is provided "as is" without express or implied warranty.
+ *
+ */
+
+/** @file ext/slist
+ *  This file is a GNU extension to the Standard C++ Library (possibly
+ *  containing extensions from the HP/SGI STL subset). 
+ */
+
+#ifndef _SLIST
+#define _SLIST 1
+
+#include <algorithm>
+#include <bits/allocator.h>
+#include <bits/stl_construct.h>
+#include <bits/stl_uninitialized.h>
+#include <bits/concept_check.h>
+
+namespace __gnu_cxx _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+  using std::size_t;
+  using std::ptrdiff_t;
+  using std::_Construct;
+  using std::_Destroy;
+  using std::allocator;
+  using std::__true_type;
+  using std::__false_type;
+
+  struct _Slist_node_base
+  {
+    _Slist_node_base* _M_next;
+  };
+  
+  inline _Slist_node_base*
+  __slist_make_link(_Slist_node_base* __prev_node,
+		    _Slist_node_base* __new_node)
+  {
+    __new_node->_M_next = __prev_node->_M_next;
+    __prev_node->_M_next = __new_node;
+    return __new_node;
+  }
+
+  inline _Slist_node_base*
+  __slist_previous(_Slist_node_base* __head,
+		   const _Slist_node_base* __node)
+  {
+    while (__head && __head->_M_next != __node)
+      __head = __head->_M_next;
+    return __head;
+  }
+
+  inline const _Slist_node_base*
+  __slist_previous(const _Slist_node_base* __head,
+		   const _Slist_node_base* __node)
+  {
+    while (__head && __head->_M_next != __node)
+      __head = __head->_M_next;
+    return __head;
+  }
+
+  inline void
+  __slist_splice_after(_Slist_node_base* __pos,
+		       _Slist_node_base* __before_first,
+		       _Slist_node_base* __before_last)
+  {
+    if (__pos != __before_first && __pos != __before_last)
+      {
+	_Slist_node_base* __first = __before_first->_M_next;
+	_Slist_node_base* __after = __pos->_M_next;
+	__before_first->_M_next = __before_last->_M_next;
+	__pos->_M_next = __first;
+	__before_last->_M_next = __after;
+      }
+  }
+
+  inline void
+  __slist_splice_after(_Slist_node_base* __pos, _Slist_node_base* __head)
+  {
+    _Slist_node_base* __before_last = __slist_previous(__head, 0);
+    if (__before_last != __head)
+      {
+	_Slist_node_base* __after = __pos->_M_next;
+	__pos->_M_next = __head->_M_next;
+	__head->_M_next = 0;
+	__before_last->_M_next = __after;
+      }
+  }
+
+  inline _Slist_node_base*
+  __slist_reverse(_Slist_node_base* __node)
+  {
+    _Slist_node_base* __result = __node;
+    __node = __node->_M_next;
+    __result->_M_next = 0;
+    while(__node)
+      {
+	_Slist_node_base* __next = __node->_M_next;
+	__node->_M_next = __result;
+	__result = __node;
+	__node = __next;
+      

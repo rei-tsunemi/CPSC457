@@ -1,0 +1,136 @@
+// <shared_mutex> -*- C++ -*-
+
+// Copyright (C) 2013-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file include/shared_mutex
+ *  This is a Standard C++ Library header.
+ */
+
+#ifndef _GLIBCXX_SHARED_MUTEX
+#define _GLIBCXX_SHARED_MUTEX 1
+
+#pragma GCC system_header
+
+#if __cplusplus >= 201402L
+
+#include <bits/c++config.h>
+#include <condition_variable>
+#include <bits/functexcept.h>
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+  /**
+   * @ingroup mutexes
+   * @{
+   */
+
+#ifdef _GLIBCXX_HAS_GTHREADS
+
+#if __cplusplus >= 201703L
+#define __cpp_lib_shared_mutex 201505
+  class shared_mutex;
+#endif
+
+#define __cpp_lib_shared_timed_mutex 201402
+  class shared_timed_mutex;
+
+#if _GLIBCXX_USE_PTHREAD_RWLOCK_T
+#ifdef __gthrw
+#define _GLIBCXX_GTHRW(name) \
+  __gthrw(pthread_ ## name); \
+  static inline int \
+  __glibcxx_ ## name (pthread_rwlock_t *__rwlock) \
+  { \
+    if (__gthread_active_p ()) \
+      return __gthrw_(pthread_ ## name) (__rwlock); \
+    else \
+      return 0; \
+  }
+  _GLIBCXX_GTHRW(rwlock_rdlock)
+  _GLIBCXX_GTHRW(rwlock_tryrdlock)
+  _GLIBCXX_GTHRW(rwlock_wrlock)
+  _GLIBCXX_GTHRW(rwlock_trywrlock)
+  _GLIBCXX_GTHRW(rwlock_unlock)
+# ifndef PTHREAD_RWLOCK_INITIALIZER
+  _GLIBCXX_GTHRW(rwlock_destroy)
+  __gthrw(pthread_rwlock_init);
+  static inline int
+  __glibcxx_rwlock_init (pthread_rwlock_t *__rwlock)
+  {
+    if (__gthread_active_p ())
+      return __gthrw_(pthread_rwlock_init) (__rwlock, NULL);
+    else
+      return 0;
+  }
+# endif
+# if _GTHREAD_USE_MUTEX_TIMEDLOCK
+   __gthrw(pthread_rwlock_timedrdlock);
+  static inline int
+  __glibcxx_rwlock_timedrdlock (pthread_rwlock_t *__rwlock,
+				const timespec *__ts)
+  {
+    if (__gthread_active_p ())
+      return __gthrw_(pthread_rwlock_timedrdlock) (__rwlock, __ts);
+    else
+      return 0;
+  }
+   __gthrw(pthread_rwlock_timedwrlock);
+  static inline int
+  __glibcxx_rwlock_timedwrlock (pthread_rwlock_t *__rwlock,
+				const timespec *__ts)
+  {
+    if (__gthread_active_p ())
+      return __gthrw_(pthread_rwlock_timedwrlock) (__rwlock, __ts);
+    else
+      return 0;
+  }
+# endif
+#else
+  static inline int
+  __glibcxx_rwlock_rdlock (pthread_rwlock_t *__rwlock)
+  { return pthread_rwlock_rdlock (__rwlock); }
+  static inline int
+  __glibcxx_rwlock_tryrdlock (pthread_rwlock_t *__rwlock)
+  { return pthread_rwlock_tryrdlock (__rwlock); }
+  static inline int
+  __glibcxx_rwlock_wrlock (pthread_rwlock_t *__rwlock)
+  { return pthread_rwlock_wrlock (__rwlock); }
+  static inline int
+  __glibcxx_rwlock_trywrlock (pthread_rwlock_t *__rwlock)
+  { return pthread_rwlock_trywrlock (__rwlock); }
+  static inline int
+  __glibcxx_rwlock_unlock (pthread_rwlock_t *__rwlock)
+  { return pthread_rwlock_unlock (__rwlock); }
+  static inline int
+  __glibcxx_rwlock_destroy(pthread_rwlock_t *__rwlock)
+  { return pthread_rwlock_destroy (__rwlock); }
+  static inline int
+  __glibcxx_rwlock_init(pthread_rwlock_t *__rwlock)
+  { return pthread_rwlock_init (__rwlock, NULL); }
+# if _GTHREAD_USE_MUTEX_TIMEDLOCK
+  static inline int
+  __glibcxx_rwlock_timedrdlock (pthread_rwlock_t *__rwlock,
+				const timespec *__ts)
+  { return pthread_rwlo

@@ -1,0 +1,144 @@
+// -*- C++ -*- header.
+
+// Copyright (C) 2008-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file include/atomic
+ *  This is a Standard C++ Library header.
+ */
+
+// Based on "C++ Atomic Types and Operations" by Hans Boehm and Lawrence Crowl.
+// http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2427.html
+
+#ifndef _GLIBCXX_ATOMIC
+#define _GLIBCXX_ATOMIC 1
+
+#pragma GCC system_header
+
+#if __cplusplus < 201103L
+# include <bits/c++0x_warning.h>
+#else
+
+#include <bits/atomic_base.h>
+#include <bits/move.h>
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+  /**
+   * @addtogroup atomics
+   * @{
+   */
+
+#if __cplusplus >= 201703L
+# define __cpp_lib_atomic_is_always_lock_free 201603
+#endif
+
+  template<typename _Tp>
+    struct atomic;
+
+  /// atomic<bool>
+  // NB: No operators or fetch-operations for this type.
+  template<>
+  struct atomic<bool>
+  {
+    using value_type = bool;
+
+  private:
+    __atomic_base<bool>	_M_base;
+
+  public:
+    atomic() noexcept = default;
+    ~atomic() noexcept = default;
+    atomic(const atomic&) = delete;
+    atomic& operator=(const atomic&) = delete;
+    atomic& operator=(const atomic&) volatile = delete;
+
+    constexpr atomic(bool __i) noexcept : _M_base(__i) { }
+
+    bool
+    operator=(bool __i) noexcept
+    { return _M_base.operator=(__i); }
+
+    bool
+    operator=(bool __i) volatile noexcept
+    { return _M_base.operator=(__i); }
+
+    operator bool() const noexcept
+    { return _M_base.load(); }
+
+    operator bool() const volatile noexcept
+    { return _M_base.load(); }
+
+    bool
+    is_lock_free() const noexcept { return _M_base.is_lock_free(); }
+
+    bool
+    is_lock_free() const volatile noexcept { return _M_base.is_lock_free(); }
+
+#if __cplusplus >= 201703L
+    static constexpr bool is_always_lock_free = ATOMIC_BOOL_LOCK_FREE == 2;
+#endif
+
+    void
+    store(bool __i, memory_order __m = memory_order_seq_cst) noexcept
+    { _M_base.store(__i, __m); }
+
+    void
+    store(bool __i, memory_order __m = memory_order_seq_cst) volatile noexcept
+    { _M_base.store(__i, __m); }
+
+    bool
+    load(memory_order __m = memory_order_seq_cst) const noexcept
+    { return _M_base.load(__m); }
+
+    bool
+    load(memory_order __m = memory_order_seq_cst) const volatile noexcept
+    { return _M_base.load(__m); }
+
+    bool
+    exchange(bool __i, memory_order __m = memory_order_seq_cst) noexcept
+    { return _M_base.exchange(__i, __m); }
+
+    bool
+    exchange(bool __i,
+	     memory_order __m = memory_order_seq_cst) volatile noexcept
+    { return _M_base.exchange(__i, __m); }
+
+    bool
+    compare_exchange_weak(bool& __i1, bool __i2, memory_order __m1,
+			  memory_order __m2) noexcept
+    { return _M_base.compare_exchange_weak(__i1, __i2, __m1, __m2); }
+
+    bool
+    compare_exchange_weak(bool& __i1, bool __i2, memory_order __m1,
+			  memory_order __m2) volatile noexcept
+    { return _M_base.compare_exchange_weak(__i1, __i2, __m1, __m2); }
+
+    bool
+    compare_exchange_weak(bool& __i1, bool __i2,
+			  memory_order __m = memory_order_seq_cst) noexcept
+    { return _M_base.compare_exchange_weak(__i1, __i2, __m); }
+
+    bool
+    c

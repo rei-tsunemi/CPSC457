@@ -1,0 +1,133 @@
+// Components for manipulating non-owning sequences of characters -*- C++ -*-
+
+// Copyright (C) 2013-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file string_view
+ *  This is a Standard C++ Library header.
+ */
+
+//
+// N3762 basic_string_view library
+//
+
+#ifndef _GLIBCXX_STRING_VIEW
+#define _GLIBCXX_STRING_VIEW 1
+
+#pragma GCC system_header
+
+#if __cplusplus >= 201703L
+
+#include <limits>
+#include <iosfwd>
+#include <bits/char_traits.h>
+#include <bits/functional_hash.h>
+#include <bits/range_access.h>
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+#define __cpp_lib_string_view 201603
+
+  // Helper for basic_string and basic_string_view members.
+  constexpr size_t
+  __sv_check(size_t __size, size_t __pos, const char* __s)
+  {
+    if (__pos > __size)
+      __throw_out_of_range_fmt(__N("%s: __pos (which is %zu) > __size "
+				   "(which is %zu)"), __s, __pos, __size);
+    return __pos;
+  }
+
+  // Helper for basic_string members.
+  // NB: __sv_limit doesn't check for a bad __pos value.
+  constexpr size_t
+  __sv_limit(size_t __size, size_t __pos, size_t __off) noexcept
+  {
+   const bool __testoff =  __off < __size - __pos;
+   return __testoff ? __off : __size - __pos;
+  }
+
+  /**
+   *  @class basic_string_view <string_view>
+   *  @brief  A non-owning reference to a string.
+   *
+   *  @ingroup strings
+   *  @ingroup sequences
+   *
+   *  @tparam _CharT  Type of character
+   *  @tparam _Traits  Traits for character type, defaults to
+   *                   char_traits<_CharT>.
+   *
+   *  A basic_string_view looks like this:
+   *
+   *  @code
+   *    _CharT*    _M_str
+   *    size_t     _M_len
+   *  @endcode
+   */
+  template<typename _CharT, typename _Traits = std::char_traits<_CharT>>
+    class basic_string_view
+    {
+      static_assert(!is_array_v<_CharT>);
+      static_assert(is_trivial_v<_CharT> && is_standard_layout_v<_CharT>);
+      static_assert(is_same_v<_CharT, typename _Traits::char_type>);
+
+    public:
+
+      // types
+      using traits_type		= _Traits;
+      using value_type		= _CharT;
+      using pointer		= value_type*;
+      using const_pointer	= const value_type*;
+      using reference		= value_type&;
+      using const_reference	= const value_type&;
+      using const_iterator	= const value_type*;
+      using iterator		= const_iterator;
+      using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+      using reverse_iterator	= const_reverse_iterator;
+      using size_type		= size_t;
+      using difference_type	= ptrdiff_t;
+      static constexpr size_type npos = size_type(-1);
+
+      // [string.view.cons], construction and assignment
+
+      constexpr
+      basic_string_view() noexcept
+      : _M_len{0}, _M_str{nullptr}
+      { }
+
+      constexpr basic_string_view(const basic_string_view&) noexcept = default;
+
+      __attribute__((__nonnull__)) constexpr
+      basic_string_view(const _CharT* __str) noexcept
+      : _M_len{traits_type::length(__str)},
+	_M_str{__str}
+      { }
+
+      constexpr
+      basic_string_view(const _CharT* __str, size_type __len) noexcept
+      : _M_len{__len}, _M_str{__str}
+      { }
+
+      constex

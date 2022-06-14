@@ -1,0 +1,159 @@
+// <thread> -*- C++ -*-
+
+// Copyright (C) 2008-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file include/thread
+ *  This is a Standard C++ Library header.
+ */
+
+#ifndef _GLIBCXX_THREAD
+#define _GLIBCXX_THREAD 1
+
+#pragma GCC system_header
+
+#if __cplusplus < 201103L
+# include <bits/c++0x_warning.h>
+#else
+
+#include <chrono>
+#include <memory>
+#include <tuple>
+#include <cerrno>
+#include <bits/functexcept.h>
+#include <bits/functional_hash.h>
+#include <bits/invoke.h>
+#include <bits/gthr.h>
+
+#if defined(_GLIBCXX_HAS_GTHREADS)
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+  /**
+   * @defgroup threads Threads
+   * @ingroup concurrency
+   *
+   * Classes for thread support.
+   * @{
+   */
+
+  /// thread
+  class thread
+  {
+  public:
+    // Abstract base class for types that wrap arbitrary functors to be
+    // invoked in the new thread of execution.
+    struct _State
+    {
+      virtual ~_State();
+      virtual void _M_run() = 0;
+    };
+    using _State_ptr = unique_ptr<_State>;
+
+    typedef __gthread_t			native_handle_type;
+
+    /// thread::id
+    class id
+    {
+      native_handle_type	_M_thread;
+
+    public:
+      id() noexcept : _M_thread() { }
+
+      explicit
+      id(native_handle_type __id) : _M_thread(__id) { }
+
+    private:
+      friend class thread;
+      friend class hash<thread::id>;
+
+      friend bool
+      operator==(thread::id __x, thread::id __y) noexcept;
+
+      friend bool
+      operator<(thread::id __x, thread::id __y) noexcept;
+
+      template<class _CharT, class _Traits>
+	friend basic_ostream<_CharT, _Traits>&
+	operator<<(basic_ostream<_CharT, _Traits>& __out, thread::id __id);
+    };
+
+  private:
+    id				_M_id;
+
+    // _GLIBCXX_RESOLVE_LIB_DEFECTS
+    // 2097.  packaged_task constructors should be constrained
+    // 3039. Unnecessary decay in thread and packaged_task
+    template<typename _Tp>
+      using __not_same = __not_<is_same<__remove_cvref_t<_Tp>, thread>>;
+
+  public:
+    thread() noexcept = default;
+
+    template<typename _Callable, typename... _Args,
+	     typename = _Require<__not_same<_Callable>>>
+      explicit
+      thread(_Callable&& __f, _Args&&... __args)
+      {
+	static_assert( __is_invocable<typename decay<_Callable>::type,
+				      typename decay<_Args>::type...>::value,
+	  "std::thread arguments must be invocable after conversion to rvalues"
+	  );
+
+#ifdef GTHR_ACTIVE_PROXY
+	// Create a reference to pthread_create, not just the gthr weak symbol.
+	auto __depend = reinterpret_cast<void(*)()>(&pthread_create);
+#else
+	auto __depend = nullptr;
+#endif
+        _M_start_thread(_S_make_state(
+	      __make_invoker(std::forward<_Callable>(__f),
+			     std::forward<_Args>(__args)...)),
+	    __depend);
+      }
+
+    ~thread()
+    {
+      if (joinable())
+	std::terminate();
+    }
+
+    thread(const thread&) = delete;
+
+    thread(thread&& __t) noexcept
+    { swap(__t); }
+
+    thread& operator=(const thread&) = delete;
+
+    thread& operator=(thread&& __t) noexcept
+    {
+      if (joinable())
+	std::terminate();
+      swap(__t);
+      return *this;
+    }
+
+    void
+    swap(thread& __t) noexcept
+    { std::swap(_M_id, __

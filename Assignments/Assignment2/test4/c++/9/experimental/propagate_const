@@ -1,0 +1,131 @@
+// <experimental/propagate_const> -*- C++ -*-
+
+// Copyright (C) 2015-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file experimental/propagate_const
+ *  This is a TS C++ Library header.
+ */
+
+#ifndef _GLIBCXX_EXPERIMENTAL_PROPAGATE_CONST
+#define _GLIBCXX_EXPERIMENTAL_PROPAGATE_CONST 1
+
+#pragma GCC system_header
+
+#if __cplusplus >= 201402L
+
+#include <type_traits>
+#include <bits/functional_hash.h>
+#include <bits/move.h>
+#include <bits/stl_function.h>
+#include <experimental/bits/lfts_config.h>
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+namespace experimental
+{
+inline namespace fundamentals_v2
+{
+  /**
+   * @defgroup propagate_const Const-propagating wrapper
+   * @ingroup experimental
+   *
+   * A const-propagating wrapper that propagates const to pointer-like members,
+   * as described in n4388 "A Proposal to Add a Const-Propagating Wrapper
+   * to the Standard Library".
+   *
+   * @{
+   */
+
+/// Const-propagating wrapper.
+  template <typename _Tp>
+    class propagate_const
+    {
+    public:
+      typedef remove_reference_t<decltype(*std::declval<_Tp&>())> element_type;
+
+    private:
+      template <typename _Up>
+	struct __is_propagate_const : false_type
+	{ };
+
+      template <typename _Up>
+	struct __is_propagate_const<propagate_const<_Up>> : true_type
+	{ };
+
+      template <typename _Up>
+	friend constexpr const _Up&
+	get_underlying(const propagate_const<_Up>& __pt) noexcept;
+      template <typename _Up>
+	friend constexpr _Up&
+	get_underlying(propagate_const<_Up>& __pt) noexcept;
+
+      template <typename _Up>
+	static constexpr element_type*
+	__to_raw_pointer(_Up* __u)
+	{ return __u; }
+
+      template <typename _Up>
+	static constexpr element_type*
+	__to_raw_pointer(_Up& __u)
+	{ return __u.get(); }
+
+      template <typename _Up>
+	static constexpr const element_type*
+	__to_raw_pointer(const _Up* __u)
+	{ return __u; }
+
+      template <typename _Up>
+	static constexpr const element_type*
+	__to_raw_pointer(const _Up& __u)
+	{ return __u.get(); }
+
+    public:
+      static_assert(__and_<is_object<typename remove_pointer<_Tp>::type>,
+			   __not_<is_array<_Tp>>,
+			   __or_<is_class<_Tp>, is_pointer<_Tp>>>::value,
+		    "propagate_const requires a class or a pointer to an"
+		    " object type");
+
+      // [propagate_const.ctor], constructors
+      constexpr propagate_const() = default;
+      propagate_const(const propagate_const& __p) = delete;
+      constexpr propagate_const(propagate_const&& __p) = default;
+      template <typename _Up, typename
+		enable_if<__and_<is_constructible<_Tp, _Up&&>,
+				 is_convertible<_Up&&, _Tp>>::value, bool
+			  >::type=true>
+      constexpr propagate_const(propagate_const<_Up>&& __pu)
+	: _M_t(std::move(get_underlying(__pu)))
+      {}
+      template <typename _Up, typename
+		enable_if<__and_<is_constructible<_Tp, _Up&&>,
+				 __not_<is_convertible<_Up&&, _Tp>>>::value,
+			  bool>::type=false>
+      constexpr explicit propagate_const(propagate_const<_Up>&& __pu)
+	: _M_t(std::move(get_underlying(__pu)))
+      {}
+      template <typename _Up, typename
+		enable_if<__and_<is_constructible<_Tp, _Up&&>,
+				 is_conve

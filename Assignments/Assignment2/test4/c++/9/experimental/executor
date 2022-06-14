@@ -1,0 +1,134 @@
+// <experimental/executor> -*- C++ -*-
+
+// Copyright (C) 2015-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file experimental/executor
+ *  This is a TS C++ Library header.
+ */
+
+#ifndef _GLIBCXX_EXPERIMENTAL_EXECUTOR
+#define _GLIBCXX_EXPERIMENTAL_EXECUTOR 1
+
+#pragma GCC system_header
+
+#if __cplusplus >= 201402L
+
+#include <algorithm>
+#include <condition_variable>
+#include <functional>
+#include <future>
+#include <list>
+#include <queue>
+#include <thread>
+#include <tuple>
+#include <unordered_map>
+#include <utility>
+#include <experimental/netfwd>
+#include <bits/unique_ptr.h>
+#include <experimental/bits/net.h>
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+namespace experimental
+{
+namespace net
+{
+inline namespace v1
+{
+
+  /**
+   * @ingroup networking
+   * @{
+   */
+
+  /// Customization point for asynchronous operations.
+  template<typename _CompletionToken, typename _Signature, typename = void>
+    class async_result;
+
+  /// Convenience utility to help implement asynchronous operations.
+  template<typename _CompletionToken, typename _Signature>
+    class async_completion;
+
+  template<typename _Tp, typename _ProtoAlloc, typename = __void_t<>>
+    struct __associated_allocator_impl
+    {
+      using type = _ProtoAlloc;
+
+      static type
+      _S_get(const _Tp&, const _ProtoAlloc& __a) noexcept { return __a; }
+    };
+
+  template<typename _Tp, typename _ProtoAlloc>
+    struct __associated_allocator_impl<_Tp, _ProtoAlloc,
+				       __void_t<typename _Tp::allocator_type>>
+    {
+      using type = typename _Tp::allocator_type;
+
+      static type
+      _S_get(const _Tp& __t, const _ProtoAlloc&) noexcept
+      { return __t.get_allocator(); }
+    };
+
+  /// Helper to associate an allocator with a type.
+  template<typename _Tp, typename _ProtoAllocator = allocator<void>>
+    struct associated_allocator
+    : __associated_allocator_impl<_Tp, _ProtoAllocator>
+    {
+      static auto
+      get(const _Tp& __t,
+	  const _ProtoAllocator& __a = _ProtoAllocator()) noexcept
+      {
+	using _Impl = __associated_allocator_impl<_Tp, _ProtoAllocator>;
+	return _Impl::_S_get(__t, __a);
+      }
+    };
+
+  /// Alias template for associated_allocator.
+  template<typename _Tp, typename _ProtoAllocator = allocator<void>>
+    using associated_allocator_t
+      = typename associated_allocator<_Tp, _ProtoAllocator>::type;
+
+  // get_associated_allocator:
+
+  template<typename _Tp>
+    inline associated_allocator_t<_Tp>
+    get_associated_allocator(const _Tp& __t) noexcept
+    { return associated_allocator<_Tp>::get(__t); }
+
+  template<typename _Tp, typename _ProtoAllocator>
+    inline associated_allocator_t<_Tp, _ProtoAllocator>
+    get_associated_allocator(const _Tp& __t,
+			     const _ProtoAllocator& __a) noexcept
+    { return associated_allocator<_Tp, _ProtoAllocator>::get(__t, __a); }
+
+  enum class fork_event { prepare, parent, child };
+
+  /// An extensible, type-safe, polymorphic set of services.
+  class execution_context;
+
+  class service_already_exists : public logic_error
+  {
+    template<typename _Service, typename... _Args>
+      friend _Service&
+      make_service(

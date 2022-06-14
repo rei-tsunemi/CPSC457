@@ -1,0 +1,135 @@
+// class template tuple -*- C++ -*-
+
+// Copyright (C) 2004-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file tr1/tuple
+*  This is a TR1 C++ Library header.
+*/
+
+// Chris Jefferson <chris@bubblescope.net>
+// Variadic Templates support by Douglas Gregor <doug.gregor@gmail.com>
+
+#ifndef _GLIBCXX_TR1_TUPLE
+#define _GLIBCXX_TR1_TUPLE 1
+
+#pragma GCC system_header
+
+#include <utility>
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+namespace tr1
+{
+  // Adds a const reference to a non-reference type.
+  template<typename _Tp>
+    struct __add_c_ref
+    { typedef const _Tp& type; };
+
+  template<typename _Tp>
+    struct __add_c_ref<_Tp&>
+    { typedef _Tp& type; };
+
+  // Adds a reference to a non-reference type.
+  template<typename _Tp>
+    struct __add_ref
+    { typedef _Tp& type; };
+
+  template<typename _Tp>
+    struct __add_ref<_Tp&>
+    { typedef _Tp& type; };
+
+  /**
+   * Contains the actual implementation of the @c tuple template, stored
+   * as a recursive inheritance hierarchy from the first element (most
+   * derived class) to the last (least derived class). The @c Idx
+   * parameter gives the 0-based index of the element stored at this
+   * point in the hierarchy; we use it to implement a constant-time
+   * get() operation.
+   */
+  template<int _Idx, typename... _Elements>
+    struct _Tuple_impl; 
+
+  /**
+   * Zero-element tuple implementation. This is the basis case for the 
+   * inheritance recursion.
+   */
+  template<int _Idx>
+    struct _Tuple_impl<_Idx> { };
+
+  /**
+   * Recursive tuple implementation. Here we store the @c Head element
+   * and derive from a @c Tuple_impl containing the remaining elements
+   * (which contains the @c Tail).
+   */
+  template<int _Idx, typename _Head, typename... _Tail>
+    struct _Tuple_impl<_Idx, _Head, _Tail...>
+    : public _Tuple_impl<_Idx + 1, _Tail...>
+    {
+      typedef _Tuple_impl<_Idx + 1, _Tail...> _Inherited;
+      
+      _Head _M_head;
+      
+      _Inherited&       _M_tail()       { return *this; }
+      const _Inherited& _M_tail() const { return *this; }
+      
+      _Tuple_impl() : _Inherited(), _M_head() { }
+      
+      explicit 
+      _Tuple_impl(typename __add_c_ref<_Head>::type __head,
+		  typename __add_c_ref<_Tail>::type... __tail)
+      : _Inherited(__tail...), _M_head(__head) { }
+
+      template<typename... _UElements>
+      _Tuple_impl(const _Tuple_impl<_Idx, _UElements...>& __in)
+      : _Inherited(__in._M_tail()), _M_head(__in._M_head) { }
+
+      _Tuple_impl(const _Tuple_impl& __in)
+      : _Inherited(__in._M_tail()), _M_head(__in._M_head) { }
+     
+      template<typename... _UElements>
+        _Tuple_impl&
+        operator=(const _Tuple_impl<_Idx, _UElements...>& __in)
+        {
+	  _M_head = __in._M_head;
+	  _M_tail() = __in._M_tail();
+	  return *this;
+	}
+
+      _Tuple_impl&
+      operator=(const _Tuple_impl& __in)
+      {
+	_M_head = __in._M_head;
+	_M_tail() = __in._M_tail();
+	return *this;
+      }
+    };
+
+  template<typename... _Elements> 
+    class tuple : public _Tuple_impl<0, _Elements...>
+    {
+      typedef _Tuple_impl<0, _Elements...> _Inherited;
+
+    public:
+    

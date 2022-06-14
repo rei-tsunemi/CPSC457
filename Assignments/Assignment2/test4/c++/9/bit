@@ -1,0 +1,140 @@
+// <bit> -*- C++ -*-
+
+// Copyright (C) 2018-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file include/bit
+ *  This is a Standard C++ Library header.
+ */
+
+#ifndef _GLIBCXX_BIT
+#define _GLIBCXX_BIT 1
+
+#pragma GCC system_header
+
+#if __cplusplus >= 201402L
+
+#include <type_traits>
+#include <limits>
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+  template<typename _Tp>
+    constexpr _Tp
+    __rotl(_Tp __x, int __s) noexcept
+    {
+      constexpr auto _Nd = numeric_limits<_Tp>::digits;
+      const int __r = __s % _Nd;
+      if (__r == 0)
+	return __x;
+      else if (__r > 0)
+	return (__x << __r) | (__x >> ((_Nd - __r) % _Nd));
+      else
+	return (__x >> -__r) | (__x << ((_Nd + __r) % _Nd)); // rotr(x, -r)
+    }
+
+  template<typename _Tp>
+    constexpr _Tp
+    __rotr(_Tp __x, int __s) noexcept
+    {
+      constexpr auto _Nd = numeric_limits<_Tp>::digits;
+      const int __r = __s % _Nd;
+      if (__r == 0)
+	return __x;
+      else if (__r > 0)
+	return (__x >> __r) | (__x << ((_Nd - __r) % _Nd));
+      else
+	return (__x << -__r) | (__x >> ((_Nd + __r) % _Nd)); // rotl(x, -r)
+    }
+
+  template<typename _Tp>
+    constexpr int
+    __countl_zero(_Tp __x) noexcept
+    {
+      constexpr auto _Nd = numeric_limits<_Tp>::digits;
+
+      if (__x == 0)
+        return _Nd;
+
+      constexpr auto _Nd_ull = numeric_limits<unsigned long long>::digits;
+      constexpr auto _Nd_ul = numeric_limits<unsigned long>::digits;
+      constexpr auto _Nd_u = numeric_limits<unsigned>::digits;
+
+      if _GLIBCXX17_CONSTEXPR (_Nd <= _Nd_u)
+	{
+	  constexpr int __diff = _Nd_u - _Nd;
+	  return __builtin_clz(__x) - __diff;
+	}
+      else if _GLIBCXX17_CONSTEXPR (_Nd <= _Nd_ul)
+	{
+	  constexpr int __diff = _Nd_ul - _Nd;
+	  return __builtin_clzl(__x) - __diff;
+	}
+      else if _GLIBCXX17_CONSTEXPR (_Nd <= _Nd_ull)
+	{
+	  constexpr int __diff = _Nd_ull - _Nd;
+	  return __builtin_clzll(__x) - __diff;
+	}
+      else // (_Nd > _Nd_ull)
+	{
+	  static_assert(_Nd <= (2 * _Nd_ull),
+			"Maximum supported integer size is 128-bit");
+
+	  unsigned long long __high = __x >> _Nd_ull;
+	  if (__high != 0)
+	    {
+	      constexpr int __diff = (2 * _Nd_ull) - _Nd;
+	      return __builtin_clzll(__high) - __diff;
+	    }
+	  constexpr auto __max_ull = numeric_limits<unsigned long long>::max();
+	  unsigned long long __low = __x & __max_ull;
+	  return (_Nd - _Nd_ull) + __builtin_clzll(__low);
+	}
+    }
+
+  template<typename _Tp>
+    constexpr int
+    __countl_one(_Tp __x) noexcept
+    {
+      if (__x == numeric_limits<_Tp>::max())
+        return numeric_limits<_Tp>::digits;
+      return std::__countl_zero<_Tp>((_Tp)~__x);
+    }
+
+  template<typename _Tp>
+    constexpr int
+    __countr_zero(_Tp __x) noexcept
+    {
+      constexpr auto _Nd = numeric_limits<_Tp>::digits;
+
+      if (__x == 0)
+        return _Nd;
+
+      constexpr auto _Nd_ull = numeric_limits<unsigned long long>::digits;
+      constexpr auto _Nd_ul = numeric_limits<unsigned long>::digits;
+      constexpr auto _Nd_u = numeric_limits<unsigned>::digits;
+
+      if _GLIBCXX17_CONSTEXPR (_Nd <= _Nd_u)
+	return __builtin_ctz(__x);
+      else if _GLIBCXX1

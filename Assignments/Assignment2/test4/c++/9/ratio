@@ -1,0 +1,126 @@
+// ratio -*- C++ -*-
+
+// Copyright (C) 2008-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file include/ratio
+ *  This is a Standard C++ Library header.
+ */
+
+#ifndef _GLIBCXX_RATIO
+#define _GLIBCXX_RATIO 1
+
+#pragma GCC system_header
+
+#if __cplusplus < 201103L
+# include <bits/c++0x_warning.h>
+#else
+
+#include <type_traits>
+#include <cstdint>		// intmax_t, uintmax_t
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+  /**
+   * @defgroup ratio Rational Arithmetic
+   * @ingroup utilities
+   *
+   * Compile time representation of finite rational numbers.
+   * @{
+   */
+
+  template<intmax_t _Pn>
+    struct __static_sign
+    : integral_constant<intmax_t, (_Pn < 0) ? -1 : 1>
+    { };
+
+  template<intmax_t _Pn>
+    struct __static_abs
+    : integral_constant<intmax_t, _Pn * __static_sign<_Pn>::value>
+    { };
+
+  template<intmax_t _Pn, intmax_t _Qn>
+    struct __static_gcd
+    : __static_gcd<_Qn, (_Pn % _Qn)>
+    { };
+
+  template<intmax_t _Pn>
+    struct __static_gcd<_Pn, 0>
+    : integral_constant<intmax_t, __static_abs<_Pn>::value>
+    { };
+
+  template<intmax_t _Qn>
+    struct __static_gcd<0, _Qn>
+    : integral_constant<intmax_t, __static_abs<_Qn>::value>
+    { };
+
+  // Let c = 2^(half # of bits in an intmax_t)
+  // then we find a1, a0, b1, b0 s.t. N = a1*c + a0, M = b1*c + b0
+  // The multiplication of N and M becomes,
+  // N * M = (a1 * b1)c^2 + (a0 * b1 + b0 * a1)c + a0 * b0
+  // Multiplication is safe if each term and the sum of the terms
+  // is representable by intmax_t.
+  template<intmax_t _Pn, intmax_t _Qn>
+    struct __safe_multiply
+    {
+    private:
+      static const uintmax_t __c = uintmax_t(1) << (sizeof(intmax_t) * 4);
+
+      static const uintmax_t __a0 = __static_abs<_Pn>::value % __c;
+      static const uintmax_t __a1 = __static_abs<_Pn>::value / __c;
+      static const uintmax_t __b0 = __static_abs<_Qn>::value % __c;
+      static const uintmax_t __b1 = __static_abs<_Qn>::value / __c;
+
+      static_assert(__a1 == 0 || __b1 == 0,
+		    "overflow in multiplication");
+      static_assert(__a0 * __b1 + __b0 * __a1 < (__c >> 1),
+		    "overflow in multiplication");
+      static_assert(__b0 * __a0 <= __INTMAX_MAX__,
+		    "overflow in multiplication");
+      static_assert((__a0 * __b1 + __b0 * __a1) * __c
+		    <= __INTMAX_MAX__ -  __b0 * __a0,
+		    "overflow in multiplication");
+
+    public:
+      static const intmax_t value = _Pn * _Qn;
+    };
+
+  // Some double-precision utilities, where numbers are represented as
+  // __hi*2^(8*sizeof(uintmax_t)) + __lo.
+  template<uintmax_t __hi1, uintmax_t __lo1, uintmax_t __hi2, uintmax_t __lo2>
+    struct __big_less
+    : integral_constant<bool, (__hi1 < __hi2
+			       || (__hi1 == __hi2 && __lo1 < __lo2))>
+    { };
+
+  template<uintmax_t __hi1, uintmax_t __lo1, uintmax_t __hi2, uintmax_t __lo2>
+    struct __big_add
+    {
+      static constexpr uintmax_t __lo = __lo1 + __lo2;
+      static constexpr uintmax_t __hi = (__hi1 + __hi2 +
+					 (__lo1 + __lo2 < __lo1)); // carry
+    };
+
+  // Subtract a number from a bigger one.
+  template<uintmax_t __hi1, uintmax_t __lo1, uintmax_t __hi2, uintmax_t __

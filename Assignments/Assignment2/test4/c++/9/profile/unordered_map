@@ -1,0 +1,119 @@
+// Profiling unordered_map/unordered_multimap implementation -*- C++ -*-
+
+// Copyright (C) 2009-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License along
+// with this library; see the file COPYING3.  If not see
+// <http://www.gnu.org/licenses/>.
+
+/** @file profile/unordered_map
+ *  This file is a GNU profile extension to the Standard C++ Library.
+ */
+
+#ifndef _GLIBCXX_PROFILE_UNORDERED_MAP
+#define _GLIBCXX_PROFILE_UNORDERED_MAP 1
+
+#if __cplusplus < 201103L
+# include <bits/c++0x_warning.h>
+#else
+# include <unordered_map>
+
+#include <profile/base.h>
+#include <profile/unordered_base.h>
+
+#define _GLIBCXX_BASE unordered_map<_Key, _Tp, _Hash, _Pred, _Alloc>
+#define _GLIBCXX_STD_BASE _GLIBCXX_STD_C::_GLIBCXX_BASE
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+namespace __profile
+{
+  /// Class std::unordered_map wrapper with performance instrumentation.
+  template<typename _Key, typename _Tp,
+	   typename _Hash = std::hash<_Key>,
+	   typename _Pred = std::equal_to<_Key>,
+	   typename _Alloc = std::allocator<std::pair<const _Key, _Tp> > >
+    class unordered_map
+    : public _GLIBCXX_STD_BASE,
+      public _Unordered_profile<unordered_map<_Key, _Tp, _Hash, _Pred, _Alloc>,
+				true>
+    {
+      typedef typename _GLIBCXX_STD_BASE _Base;
+
+      _Base&
+      _M_base() noexcept	{ return *this; }
+
+      const _Base&
+      _M_base() const noexcept	{ return *this; }
+
+    public:
+      typedef typename _Base::size_type		size_type;
+      typedef typename _Base::hasher		hasher;
+      typedef typename _Base::key_equal		key_equal;
+      typedef typename _Base::allocator_type	allocator_type;
+      typedef typename _Base::key_type		key_type;
+      typedef typename _Base::value_type	value_type;
+      typedef typename _Base::difference_type	difference_type;
+      typedef typename _Base::reference		reference;
+      typedef typename _Base::const_reference	const_reference;
+      typedef typename _Base::mapped_type	mapped_type;
+
+      typedef typename _Base::iterator		iterator;
+      typedef typename _Base::const_iterator	const_iterator;
+
+      unordered_map() = default;
+
+      explicit
+      unordered_map(size_type __n,
+		    const hasher& __hf = hasher(),
+		    const key_equal& __eql = key_equal(),
+		    const allocator_type& __a = allocator_type())
+      : _Base(__n, __hf, __eql, __a) { }
+
+      template<typename _InputIterator>
+	unordered_map(_InputIterator __f, _InputIterator __l,
+		      size_type __n = 0,
+		      const hasher& __hf = hasher(),
+		      const key_equal& __eql = key_equal(),
+		      const allocator_type& __a = allocator_type())
+	: _Base(__f, __l, __n, __hf, __eql, __a) { }
+
+      unordered_map(const unordered_map&) = default;
+
+      unordered_map(const _Base& __x)
+      : _Base(__x) { }
+
+      unordered_map(unordered_map&&) = default;
+
+      explicit
+      unordered_map(const allocator_type& __a)
+      : _Base(__a) { }
+
+      unordered_map(const unordered_map& __umap,
+		    const allocator_type& __a)
+      : _Base(__umap, __a) { }
+
+      unordered_map(unordered_map&& __umap,
+		    const allocator_type& __a)
+      : _Base(std::move(__umap._M_base()), __a) { }
+
+      unordered_map(initializer_list<value_type> __l,
+		    size_type __n = 0,
+		    const hasher& __hf = hasher(),
+		    const key_equal& __eql = key_equal(),
+		    const allocator_type& __a = allocator_type

@@ -1,0 +1,148 @@
+// <experimental/internet> -*- C++ -*-
+
+// Copyright (C) 2015-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file experimental/internet
+ *  This is a TS C++ Library header.
+ */
+
+#ifndef _GLIBCXX_EXPERIMENTAL_INTERNET
+#define _GLIBCXX_EXPERIMENTAL_INTERNET
+
+#pragma GCC system_header
+
+#if __cplusplus >= 201402L
+
+#include <experimental/netfwd>
+#include <experimental/io_context>
+#include <experimental/bits/net.h>
+#include <array>
+#include <forward_list>
+#include <sstream>
+#include <cstdint>
+#include <experimental/string_view>
+#ifdef _GLIBCXX_HAVE_UNISTD_H
+# include <unistd.h>
+#endif
+#ifdef _GLIBCXX_HAVE_SYS_SOCKET_H
+# include <sys/socket.h>	// AF_INET, AF_INET6, SOCK_DGRAM, SOCK_STREAM
+#endif
+#ifdef _GLIBCXX_HAVE_ARPA_INET_H
+# include <arpa/inet.h>		// inet_ntop
+#endif
+#ifdef _GLIBCXX_HAVE_NETINET_IN_H
+# include <netinet/in.h>	// IPPROTO_IP
+#endif
+#ifdef _GLIBCXX_HAVE_NETINET_TCP_H
+# include <netinet/tcp.h>	// TCP_NODELAY
+#endif
+#ifdef _GLIBCXX_HAVE_NETDB_H
+# include <netdb.h>		// getaddrinfo etc.
+#endif
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+namespace experimental
+{
+namespace net
+{
+inline namespace v1
+{
+namespace ip
+{
+
+  /**
+   * @ingroup networking
+   * @{
+   */
+
+#ifdef _GLIBCXX_HAVE_NETDB_H
+  /** Error codes for resolver errors.
+   * @{
+   */
+
+  enum class resolver_errc : int {
+    host_not_found = EAI_NONAME,
+    host_not_found_try_again = EAI_AGAIN,
+    service_not_found = EAI_SERVICE
+  };
+
+  /// Error category for resolver errors.
+  inline const error_category& resolver_category() noexcept // TODO non-inline
+  {
+    struct __cat : error_category
+    {
+      const char* name() const noexcept { return "resolver"; }
+      std::string message(int __e) const { return ::gai_strerror(__e); }
+      virtual void __message(int) { } // TODO dual ABI XXX
+    };
+    static __cat __c;
+    return __c;
+  }
+
+  error_code make_error_code(resolver_errc __e) noexcept
+  { return error_code(static_cast<int>(__e), resolver_category()); }
+
+  error_condition make_error_condition(resolver_errc __e) noexcept
+  { return error_condition(static_cast<int>(__e), resolver_category()); }
+
+  /// @}
+#endif
+
+  typedef uint_least16_t port_type;	///< Type used for port numbers.
+  typedef uint_least32_t scope_id_type;	///< Type used for IPv6 scope IDs.
+
+  /// Convenience alias for constraining allocators for strings.
+  template<typename _Alloc>
+    using __string_with
+      = enable_if_t<std::is_same<typename _Alloc::value_type, char>::value,
+		    std::basic_string<char, std::char_traits<char>, _Alloc>>;
+
+  /** Tag indicating conversion between IPv4 and IPv4-mapped IPv6 addresses.
+   * @{
+   */
+
+  struct v4_mapped_t {};
+  constexpr v4_mapped_t v4_mapped;
+
+  // @}
+
+  /// An IPv4 address.
+  class address_v4
+  {
+  public:
+    // types:
+    typedef uint_least32_t uint_type;
+
+    struct bytes_type : array<unsigned char, 4>
+    {
+      template<typename... _Tp>
+	explicit constexpr
+	bytes_type(_Tp... __tp)
+	: array<unsigned char, 4>{{static_cast<unsigned char>(__tp)...}}
+	{
+#if UCHAR_MAX > 0xFF
+	  for (auto __b : *this)
+	    if (__b > 0xFF)
+	      __throw_out_of_range

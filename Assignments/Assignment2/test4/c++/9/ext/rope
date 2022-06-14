@@ -1,0 +1,139 @@
+// SGI's rope class -*- C++ -*-
+
+// Copyright (C) 2001-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/*
+ * Copyright (c) 1997
+ * Silicon Graphics Computer Systems, Inc.
+ *
+ * Permission to use, copy, modify, distribute and sell this software
+ * and its documentation for any purpose is hereby granted without fee,
+ * provided that the above copyright notice appear in all copies and
+ * that both that copyright notice and this permission notice appear
+ * in supporting documentation.  Silicon Graphics makes no
+ * representations about the suitability of this software for any
+ * purpose.  It is provided "as is" without express or implied warranty.
+ */
+
+/** @file ext/rope
+ *  This file is a GNU extension to the Standard C++ Library (possibly
+ *  containing extensions from the HP/SGI STL subset). 
+ */
+
+#ifndef _ROPE
+#define _ROPE 1
+
+#pragma GCC system_header
+
+#include <algorithm>
+#include <iosfwd>
+#include <bits/stl_construct.h>
+#include <bits/stl_uninitialized.h>
+#include <bits/stl_function.h>
+#include <bits/stl_numeric.h>
+#include <bits/allocator.h>
+#include <bits/gthr.h>
+#include <tr1/functional>
+
+# ifdef __GC
+#   define __GC_CONST const
+# else
+#   define __GC_CONST   // constant except for deallocation
+# endif
+
+#include <ext/memory> // For uninitialized_copy_n
+
+namespace __gnu_cxx _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+  namespace __detail
+  {
+    enum { _S_max_rope_depth = 45 };
+    enum _Tag {_S_leaf, _S_concat, _S_substringfn, _S_function};
+  } // namespace __detail
+
+  using std::size_t;
+  using std::ptrdiff_t;
+  using std::allocator;
+  using std::_Destroy;
+
+  // See libstdc++/36832.
+  template<typename _ForwardIterator, typename _Allocator>
+    void
+    _Destroy_const(_ForwardIterator __first,
+		   _ForwardIterator __last, _Allocator __alloc)
+    {
+      for (; __first != __last; ++__first)
+	__alloc.destroy(&*__first);
+    }
+
+  template<typename _ForwardIterator, typename _Tp>
+    inline void
+    _Destroy_const(_ForwardIterator __first,
+		   _ForwardIterator __last, allocator<_Tp>)
+    { _Destroy(__first, __last); }
+
+  // The _S_eos function is used for those functions that
+  // convert to/from C-like strings to detect the end of the string.
+  
+  // The end-of-C-string character.
+  // This is what the draft standard says it should be.
+  template <class _CharT>
+    inline _CharT
+    _S_eos(_CharT*)
+    { return _CharT(); }
+
+  // Test for basic character types.
+  // For basic character types leaves having a trailing eos.
+  template <class _CharT>
+    inline bool
+    _S_is_basic_char_type(_CharT*)
+    { return false; }
+  
+  template <class _CharT>
+    inline bool
+    _S_is_one_byte_char_type(_CharT*)
+    { return false; }
+
+  inline bool
+  _S_is_basic_char_type(char*)
+  { return true; }
+  
+  inline bool
+  _S_is_one_byte_char_type(char*)
+  { return true; }
+  
+  inline bool
+  _S_is_basic_char_type(wchar_t*)
+  { return true; }
+
+  // Store an eos iff _CharT is a basic character type.
+  // Do not reference _S_eos if it isn't.
+  template <class _CharT>
+    inline void
+    _S_cond_store_eos(_CharT&) { }
+
+  inline void
+  _S_cond_store_eos(char& __c)
+  { 

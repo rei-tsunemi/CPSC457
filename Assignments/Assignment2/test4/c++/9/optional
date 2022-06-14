@@ -1,0 +1,143 @@
+// <optional> -*- C++ -*-
+
+// Copyright (C) 2013-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file include/optional
+ *  This is a Standard C++ Library header.
+ */
+
+#ifndef _GLIBCXX_OPTIONAL
+#define _GLIBCXX_OPTIONAL 1
+
+#pragma GCC system_header
+
+#if __cplusplus >= 201703L
+
+#include <utility>
+#include <type_traits>
+#include <stdexcept>
+#include <new>
+#include <initializer_list>
+#include <bits/functexcept.h>
+#include <bits/functional_hash.h>
+#include <bits/enable_special_members.h>
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+  /**
+   *  @addtogroup utilities
+   *  @{
+   */
+
+#define __cpp_lib_optional 201606L
+
+  template<typename _Tp>
+    class optional;
+
+  /// Tag type to disengage optional objects.
+  struct nullopt_t
+  {
+    // Do not user-declare default constructor at all for
+    // optional_value = {} syntax to work.
+    // nullopt_t() = delete;
+
+    // Used for constructing nullopt.
+    enum class _Construct { _Token };
+
+    // Must be constexpr for nullopt_t to be literal.
+    explicit constexpr nullopt_t(_Construct) { }
+  };
+
+  /// Tag to disengage optional objects.
+  inline constexpr nullopt_t nullopt { nullopt_t::_Construct::_Token };
+
+  /**
+   *  @brief Exception class thrown when a disengaged optional object is
+   *  dereferenced.
+   *  @ingroup exceptions
+   */
+  class bad_optional_access : public exception
+  {
+  public:
+    bad_optional_access() { }
+
+    virtual const char* what() const noexcept override
+    { return "bad optional access"; }
+
+    virtual ~bad_optional_access() noexcept = default;
+  };
+
+  void
+  __throw_bad_optional_access()
+  __attribute__((__noreturn__));
+
+  // XXX Does not belong here.
+  inline void
+  __throw_bad_optional_access()
+  { _GLIBCXX_THROW_OR_ABORT(bad_optional_access()); }
+
+  // This class template manages construction/destruction of
+  // the contained value for a std::optional.
+  template <typename _Tp>
+    struct _Optional_payload_base
+    {
+      using _Stored_type = remove_const_t<_Tp>;
+
+      _Optional_payload_base() = default;
+      ~_Optional_payload_base() = default;
+
+      template<typename... _Args>
+	constexpr
+	_Optional_payload_base(in_place_t __tag, _Args&&... __args)
+	: _M_payload(__tag, std::forward<_Args>(__args)...),
+	  _M_engaged(true)
+	{ }
+
+      template<typename _Up, typename... _Args>
+	constexpr
+	_Optional_payload_base(std::initializer_list<_Up> __il,
+			       _Args&&... __args)
+	: _M_payload(__il, std::forward<_Args>(__args)...),
+	  _M_engaged(true)
+	{ }
+
+      // Constructor used by _Optional_base copy constructor when the
+      // contained value is not trivially copy constructible.
+      constexpr
+      _Optional_payload_base(bool __engaged,
+			     const _Optional_payload_base& __other)
+      {
+	if (__other._M_engaged)
+	  this->_M_construct(__other._M_get());
+      }
+
+      // Constructor used by _Optional_base move constructor when the
+      // contained value is not trivially move constructible.
+      constexpr
+      _Optional_payload_base(bool __engaged,
+			     _Optional_payload_base&& __other)
+      {
+	if (__other._M_engaged)
+	  this->_M_construct(std::mo

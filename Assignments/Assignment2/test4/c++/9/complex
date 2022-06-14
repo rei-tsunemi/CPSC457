@@ -1,0 +1,108 @@
+// The template and inlines for the -*- C++ -*- complex number classes.
+
+// Copyright (C) 1997-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file include/complex
+ *  This is a Standard C++ Library header.
+ */
+
+//
+// ISO C++ 14882: 26.2  Complex Numbers
+// Note: this is not a conforming implementation.
+// Initially implemented by Ulrich Drepper <drepper@cygnus.com>
+// Improved by Gabriel Dos Reis <dosreis@cmla.ens-cachan.fr>
+//
+
+#ifndef _GLIBCXX_COMPLEX
+#define _GLIBCXX_COMPLEX 1
+
+#pragma GCC system_header
+
+#include <bits/c++config.h>
+#include <bits/cpp_type_traits.h>
+#include <ext/type_traits.h>
+#include <cmath>
+#include <sstream>
+
+// Get rid of a macro possibly defined in <complex.h>
+#undef complex
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+  /**
+   * @defgroup complex_numbers Complex Numbers
+   * @ingroup numerics
+   *
+   * Classes and functions for complex numbers.
+   * @{
+   */
+
+  // Forward declarations.
+  template<typename _Tp> class complex;
+  template<> class complex<float>;
+  template<> class complex<double>;
+  template<> class complex<long double>;
+
+  ///  Return magnitude of @a z.
+  template<typename _Tp> _Tp abs(const complex<_Tp>&);
+  ///  Return phase angle of @a z.
+  template<typename _Tp> _Tp arg(const complex<_Tp>&);
+  ///  Return @a z magnitude squared.
+  template<typename _Tp> _Tp _GLIBCXX20_CONSTEXPR norm(const complex<_Tp>&);
+
+  ///  Return complex conjugate of @a z.
+  template<typename _Tp>
+    _GLIBCXX20_CONSTEXPR complex<_Tp> conj(const complex<_Tp>&);
+  ///  Return complex with magnitude @a rho and angle @a theta.
+  template<typename _Tp> complex<_Tp> polar(const _Tp&, const _Tp& = 0);
+
+  // Transcendentals:
+  /// Return complex cosine of @a z.
+  template<typename _Tp> complex<_Tp> cos(const complex<_Tp>&);
+  /// Return complex hyperbolic cosine of @a z.
+  template<typename _Tp> complex<_Tp> cosh(const complex<_Tp>&);
+  /// Return complex base e exponential of @a z.
+  template<typename _Tp> complex<_Tp> exp(const complex<_Tp>&);
+  /// Return complex natural logarithm of @a z.
+  template<typename _Tp> complex<_Tp> log(const complex<_Tp>&);
+  /// Return complex base 10 logarithm of @a z.
+  template<typename _Tp> complex<_Tp> log10(const complex<_Tp>&);
+  /// Return @a x to the @a y'th power.
+  template<typename _Tp> complex<_Tp> pow(const complex<_Tp>&, int);
+  /// Return @a x to the @a y'th power.
+  template<typename _Tp> complex<_Tp> pow(const complex<_Tp>&, const _Tp&);
+  /// Return @a x to the @a y'th power.
+  template<typename _Tp> complex<_Tp> pow(const complex<_Tp>&,
+                                          const complex<_Tp>&);
+  /// Return @a x to the @a y'th power.
+  template<typename _Tp> complex<_Tp> pow(const _Tp&, const complex<_Tp>&);
+  /// Return complex sine of @a z.
+  template<typename _Tp> complex<_Tp> sin(const complex<_Tp>&);
+  /// Return complex hyperbolic sine of @a z.
+  template<typename _Tp> complex<_Tp> sinh(const complex<_Tp>&);
+  /// Return complex square root of @a z.
+  template<typename _Tp> complex<_Tp> sqrt(const complex<_Tp>&);
+  /// Return complex tangent of @a z.
+  tem

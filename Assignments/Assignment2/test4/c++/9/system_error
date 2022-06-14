@@ -1,0 +1,148 @@
+// <system_error> -*- C++ -*-
+
+// Copyright (C) 2007-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file include/system_error
+ *  This is a Standard C++ Library header.
+ */
+
+#ifndef _GLIBCXX_SYSTEM_ERROR
+#define _GLIBCXX_SYSTEM_ERROR 1
+
+#pragma GCC system_header
+
+#if __cplusplus < 201103L
+# include <bits/c++0x_warning.h>
+#else
+
+#include <bits/c++config.h>
+#include <bits/error_constants.h>
+#include <iosfwd>
+#include <stdexcept>
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+  class error_code;
+  class error_condition;
+  class system_error;
+
+  /// is_error_code_enum
+  template<typename _Tp>
+    struct is_error_code_enum : public false_type { };
+
+  /// is_error_condition_enum
+  template<typename _Tp>
+    struct is_error_condition_enum : public false_type { };
+
+  template<>
+    struct is_error_condition_enum<errc>
+    : public true_type { };
+
+#if __cplusplus > 201402L
+  template <typename _Tp>
+    inline constexpr bool is_error_code_enum_v =
+      is_error_code_enum<_Tp>::value;
+  template <typename _Tp>
+    inline constexpr bool is_error_condition_enum_v =
+      is_error_condition_enum<_Tp>::value;
+#endif // C++17
+  inline namespace _V2 {
+
+  /// error_category
+  class error_category
+  {
+  public:
+    constexpr error_category() noexcept = default;
+
+    virtual ~error_category();
+
+    error_category(const error_category&) = delete;
+    error_category& operator=(const error_category&) = delete;
+
+    virtual const char*
+    name() const noexcept = 0;
+
+    // We need two different virtual functions here, one returning a
+    // COW string and one returning an SSO string. Their positions in the
+    // vtable must be consistent for dynamic dispatch to work, but which one
+    // the name "message()" finds depends on which ABI the caller is using.
+#if _GLIBCXX_USE_CXX11_ABI
+  private:
+    _GLIBCXX_DEFAULT_ABI_TAG
+    virtual __cow_string
+    _M_message(int) const;
+
+  public:
+    _GLIBCXX_DEFAULT_ABI_TAG
+    virtual string
+    message(int) const = 0;
+#else
+    virtual string
+    message(int) const = 0;
+
+  private:
+    virtual __sso_string
+    _M_message(int) const;
+#endif
+
+  public:
+    virtual error_condition
+    default_error_condition(int __i) const noexcept;
+
+    virtual bool
+    equivalent(int __i, const error_condition& __cond) const noexcept;
+
+    virtual bool
+    equivalent(const error_code& __code, int __i) const noexcept;
+
+    bool
+    operator<(const error_category& __other) const noexcept
+    { return less<const error_category*>()(this, &__other); }
+
+    bool
+    operator==(const error_category& __other) const noexcept
+    { return this == &__other; }
+
+    bool
+    operator!=(const error_category& __other) const noexcept
+    { return this != &__other; }
+  };
+
+  // DR 890.
+  _GLIBCXX_CONST const error_category& system_category() noexcept;
+  _GLIBCXX_CONST const error_category& generic_category() noexcept;
+
+  } // end inline namespace
+
+  error_code make_error_code(errc) noexcept;
+
+  template<typename _Tp>
+    struct hash;
+
+  /// error_code
+  // Implementation-specific error identification
+  struct error_code
+  {
+    error_code() noexce

@@ -1,0 +1,133 @@
+// <experimental/functional> -*- C++ -*-
+
+// Copyright (C) 2014-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file experimental/functional
+ *  This is a TS C++ Library header.
+ */
+
+#ifndef _GLIBCXX_EXPERIMENTAL_FUNCTIONAL
+#define _GLIBCXX_EXPERIMENTAL_FUNCTIONAL 1
+
+#pragma GCC system_header
+
+#if __cplusplus >= 201402L
+
+#include <functional>
+#include <tuple>
+#include <iterator>
+#include <unordered_map>
+#include <vector>
+#include <array>
+#include <bits/stl_algo.h>
+#ifdef _GLIBCXX_PARALLEL
+# include <parallel/algorithm> // For std::__parallel::search
+#endif
+#include <experimental/bits/lfts_config.h>
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+namespace experimental
+{
+inline namespace fundamentals_v1
+{
+  // See C++14 20.9.9, Function object binders
+
+  /// Variable template for std::is_bind_expression
+  template<typename _Tp>
+    constexpr bool is_bind_expression_v = std::is_bind_expression<_Tp>::value;
+
+  /// Variable template for std::is_placeholder
+  template<typename _Tp>
+    constexpr int is_placeholder_v = std::is_placeholder<_Tp>::value;
+
+#define __cpp_lib_experimental_boyer_moore_searching 201411
+
+  // Searchers
+
+  template<typename _ForwardIterator1, typename _BinaryPredicate = equal_to<>>
+    class default_searcher
+    {
+    public:
+      default_searcher(_ForwardIterator1 __pat_first,
+		       _ForwardIterator1 __pat_last,
+		       _BinaryPredicate __pred = _BinaryPredicate())
+      : _M_m(__pat_first, __pat_last, std::move(__pred))
+      { }
+
+      template<typename _ForwardIterator2>
+	_ForwardIterator2
+	operator()(_ForwardIterator2 __first, _ForwardIterator2 __last) const
+	{
+	  return std::search(__first, __last,
+			     std::get<0>(_M_m), std::get<1>(_M_m),
+			     std::get<2>(_M_m));
+	}
+
+    private:
+      std::tuple<_ForwardIterator1, _ForwardIterator1, _BinaryPredicate> _M_m;
+    };
+
+  template<typename _Key, typename _Tp, typename _Hash, typename _Pred>
+    struct __boyer_moore_map_base
+    {
+      template<typename _RAIter>
+	__boyer_moore_map_base(_RAIter __pat, size_t __patlen,
+			       _Hash&& __hf, _Pred&& __pred)
+	: _M_bad_char{ __patlen, std::move(__hf), std::move(__pred) }
+	{
+	  if (__patlen > 0)
+	    for (__diff_type __i = 0; __i < __patlen - 1; ++__i)
+	      _M_bad_char[__pat[__i]] = __patlen - 1 - __i;
+	}
+
+      using __diff_type = _Tp;
+
+      __diff_type
+      _M_lookup(_Key __key, __diff_type __not_found) const
+      {
+	auto __iter = _M_bad_char.find(__key);
+	if (__iter == _M_bad_char.end())
+	  return __not_found;
+	return __iter->second;
+      }
+
+      _Pred
+      _M_pred() const { return _M_bad_char.key_eq(); }
+
+      _GLIBCXX_STD_C::unordered_map<_Key, _Tp, _Hash, _Pred> _M_bad_char;
+    };
+
+  template<typename _Tp, size_t _Len, typename _Pred>
+    struct __boyer_moore_array_base
+    {
+      template<typename _RAIter, typename _Unused>
+	__boyer_moore_array_base(_RAIter __pat, size_t __patlen,
+				 _Unused&&, _Pred&& __pred)
+	: _M_bad_char{ _GLIBCXX_STD_C::array<_Tp, _Len>{}, std::move(__pred) }
+	{
+	  std::get<0>(_M_bad_char).fill(__patlen);
+	  if (__patlen > 0)
+	    for (__diff_type __i = 0; __i < __

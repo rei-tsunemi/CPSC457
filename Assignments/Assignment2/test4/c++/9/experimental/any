@@ -1,0 +1,144 @@
+// <experimental/any> -*- C++ -*-
+
+// Copyright (C) 2014-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file experimental/any
+ *  This is a TS C++ Library header.
+ */
+
+#ifndef _GLIBCXX_EXPERIMENTAL_ANY
+#define _GLIBCXX_EXPERIMENTAL_ANY 1
+
+#pragma GCC system_header
+
+#if __cplusplus >= 201402L
+
+#include <typeinfo>
+#include <new>
+#include <utility>
+#include <type_traits>
+#include <experimental/bits/lfts_config.h>
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+namespace experimental
+{
+inline namespace fundamentals_v1
+{
+  /**
+   * @defgroup any Type-safe container of any type
+   * @ingroup experimental
+   *
+   * A type-safe container for single values of value types, as
+   * described in n3804 "Any Library Proposal (Revision 3)".
+   *
+   * @{
+   */
+
+#define __cpp_lib_experimental_any 201411
+
+  /**
+   *  @brief Exception class thrown by a failed @c any_cast
+   *  @ingroup exceptions
+   */
+  class bad_any_cast : public bad_cast
+  {
+  public:
+    virtual const char* what() const noexcept { return "bad any_cast"; }
+  };
+
+  [[gnu::noreturn]] inline void __throw_bad_any_cast()
+  {
+#if __cpp_exceptions
+    throw bad_any_cast{};
+#else
+    __builtin_abort();
+#endif
+  }
+
+  /**
+   *  @brief A type-safe container of any type.
+   * 
+   *  An @c any object's state is either empty or it stores a contained object
+   *  of CopyConstructible type.
+   */
+  class any
+  {
+    // Holds either pointer to a heap object or the contained object itself.
+    union _Storage
+    {
+      // This constructor intentionally doesn't initialize anything.
+      _Storage() = default;
+
+      // Prevent trivial copies of this type, buffer might hold a non-POD.
+      _Storage(const _Storage&) = delete;
+      _Storage& operator=(const _Storage&) = delete;
+
+      void* _M_ptr;
+      aligned_storage<sizeof(_M_ptr), alignof(void*)>::type _M_buffer;
+    };
+
+    template<typename _Tp, typename _Safe = is_nothrow_move_constructible<_Tp>,
+	     bool _Fits = (sizeof(_Tp) <= sizeof(_Storage))
+			  && (alignof(_Tp) <= alignof(_Storage))>
+      using _Internal = std::integral_constant<bool, _Safe::value && _Fits>;
+
+    template<typename _Tp>
+      struct _Manager_internal; // uses small-object optimization
+
+    template<typename _Tp>
+      struct _Manager_external; // creates contained object on the heap
+
+    template<typename _Tp>
+      using _Manager = conditional_t<_Internal<_Tp>::value,
+				     _Manager_internal<_Tp>,
+				     _Manager_external<_Tp>>;
+
+    template<typename _Tp, typename _Decayed = decay_t<_Tp>>
+      using _Decay = enable_if_t<!is_same<_Decayed, any>::value, _Decayed>;
+
+  public:
+    // construct/destruct
+
+    /// Default constructor, creates an empty object.
+    any() noexcept : _M_manager(nullptr) { }
+
+    /// Copy constructor, copies the state of @p __other
+    any(const any& __other)
+    {
+      if (__other.empty())
+	_M_manager = nullptr;
+      else
+	{
+	  _Arg __arg;
+	  __arg._M_any = this;
+	  __other._M_manager(_Op_clone, &__other, &__arg);
+	}
+    }
+
+    /**
+     * @brief Move constructor, transfer the state from @p __other
+     *
+     * @post @c __other.empty(

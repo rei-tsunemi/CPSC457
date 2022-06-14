@@ -1,0 +1,133 @@
+// <scoped_allocator> -*- C++ -*-
+
+// Copyright (C) 2011-2019 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file include/scoped_allocator
+ *  This is a Standard C++ Library header.
+ */
+
+#ifndef _SCOPED_ALLOCATOR
+#define _SCOPED_ALLOCATOR 1
+
+#pragma GCC system_header
+
+#if __cplusplus < 201103L
+# include <bits/c++0x_warning.h>
+#else
+
+#include <memory>
+#include <utility>
+#include <tuple>
+#include <bits/alloc_traits.h>
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+  /**
+   * @addtogroup allocators
+   * @{
+   */
+
+  template<typename _Alloc>
+    using __outer_allocator_t
+      = decltype(std::declval<_Alloc>().outer_allocator());
+
+  template<typename _Alloc, typename = void>
+    struct __outermost_type
+    {
+      using type = _Alloc;
+      static type& _S_outermost(_Alloc& __a) { return __a; }
+    };
+
+  template<typename _Alloc>
+    struct __outermost_type<_Alloc, __void_t<__outer_allocator_t<_Alloc>>>
+    : __outermost_type<
+      typename remove_reference<__outer_allocator_t<_Alloc>>::type
+    >
+    {
+      using __base = __outermost_type<
+        typename remove_reference<__outer_allocator_t<_Alloc>>::type
+      >;
+
+      static typename __base::type&
+      _S_outermost(_Alloc& __a)
+      { return __base::_S_outermost(__a.outer_allocator()); }
+    };
+
+  template<typename _Alloc>
+    inline typename __outermost_type<_Alloc>::type&
+    __outermost(_Alloc& __a)
+    { return __outermost_type<_Alloc>::_S_outermost(__a); }
+
+  template<typename _OuterAlloc, typename... _InnerAllocs>
+    class scoped_allocator_adaptor;
+
+  template<typename...>
+    struct __inner_type_impl;
+
+  template<typename _Outer>
+    struct __inner_type_impl<_Outer>
+    {
+      typedef scoped_allocator_adaptor<_Outer> __type;
+
+      __inner_type_impl() = default;
+      __inner_type_impl(const __inner_type_impl&) = default;
+      __inner_type_impl(__inner_type_impl&&) = default;
+      __inner_type_impl& operator=(const __inner_type_impl&) = default;
+      __inner_type_impl& operator=(__inner_type_impl&&) = default;
+
+      template<typename _Alloc>
+      __inner_type_impl(const __inner_type_impl<_Alloc>& __other)
+      { }
+
+      template<typename _Alloc>
+      __inner_type_impl(__inner_type_impl<_Alloc>&& __other)
+      { }
+
+      __type&
+      _M_get(__type* __p) noexcept { return *__p; }
+
+      const __type&
+      _M_get(const __type* __p) const noexcept { return *__p; }
+
+      tuple<>
+      _M_tie() const noexcept { return tuple<>(); }
+
+      bool
+      operator==(const __inner_type_impl&) const noexcept
+      { return true; }
+    };
+
+  template<typename _Outer, typename _InnerHead, typename... _InnerTail>
+    struct __inner_type_impl<_Outer, _InnerHead, _InnerTail...>
+    {
+      typedef scoped_allocator_adaptor<_InnerHead, _InnerTail...> __type;
+
+      __inner_type_impl() = default;
+      __inner_type_impl(const __inner_type_impl&) = default;
+      __inner_type_impl(__inner_type_impl&&) = default;
+      __inner_type_impl& operator=(const __inner_type_impl&) = default;
+      __inner_type_impl& operator=(__inner_type_impl&&) = default;
+
+      template<typename... _Allocs
