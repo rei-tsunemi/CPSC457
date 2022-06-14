@@ -1,0 +1,5 @@
+make --dry-run --always-make --keep-going --print-directory
+make: Entering directory '/home/profs/pfederl/teaching/cpsc457-p21/a5/fatsim'
+g++ -O2 -Wall fatsim.cpp main.cpp -o fatsim
+make: Leaving directory '/home/profs/pfederl/teaching/cpsc457-p21/a5/fatsim'
+ 
