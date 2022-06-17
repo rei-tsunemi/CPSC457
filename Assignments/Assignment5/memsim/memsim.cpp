@@ -47,6 +47,7 @@ typedef std::list<Partition>::iterator ParIt;
 // If you decide not to use this class, please remove it before submitting it.
 struct Simulator {
 	std::list<Partition> partitions;
+	std::unordered_map<int, std::vector<ParIt>> owned_partitions;
 	int64_t page_size;
 	int64_t pages_requested;
 
@@ -56,6 +57,7 @@ struct Simulator {
 	}
 
 	void allocate(int tag, int size) {
+		//std::cout<<"ALLOCATE "<<tag<<std::endl;
 		ParIt it, max_it;
 		int64_t max_size = 0, max_address = 0;
 
@@ -99,18 +101,21 @@ struct Simulator {
 		}
 
 		if(max_size > size) {
-			Partition full(max_address, size, tag);
-			partitions.insert(max_it, full);
-			max_it->address += size;
-			max_it->size -= size;
-			//create a new partition to hold the requested memory and insert it in the left side of the remaining memory
-			//also update the remaining memory in the free partition
+			Partition empty(max_address + size, max_size - size);
+			partitions.insert(std::next(max_it), empty);
+			max_it->tag = tag;
+			max_it->size = size;
+			//create a new partition to hold the remaining free memory and insert it in the right side of the remaining memory
+			//also update the newly occupied portion of memory
 		}
 		else {
 			max_it->tag = tag;
 			//if the chosen partition is the exact size requested, just change the tag of the partition
 
 		}
+
+		owned_partitions[tag].push_back(max_it);
+
 
     // Pseudocode for allocation request:
     // - search through the list of partitions from start to end, and
@@ -127,6 +132,32 @@ struct Simulator {
 	}
 
 	void deallocate(int tag) {
+		//std::cout<<"DEALLOCATE "<<tag<<std::endl;
+		std::vector<ParIt> owned = owned_partitions[tag];
+
+		for(auto it: owned) {
+			//std::cout<<"PRINTING IT"<<std::endl;
+			//it->print();
+			it->tag = -1;
+
+			ParIt temp = std::next(it);
+			//std::cout<<(it == partitions.begin())<<std::endl;
+			if(temp->tag == -1) {
+				it->size += temp->size;
+				partitions.erase(temp);
+			}
+
+			temp = std::prev(it);
+			if(temp->tag == -1) {
+				it->size += temp->size;
+				it->address = temp->address;
+				partitions.erase(temp);
+			}
+		}
+
+		owned_partitions.erase(tag);
+
+		/*
 		ParIt it = partitions.begin();
 		while(1) {
 			if(it == partitions.end()) break;
@@ -143,14 +174,15 @@ struct Simulator {
 
 				temp = std::prev(it);
 				if(temp->tag == -1) {
-					temp->size += it->size;
-					partitions.erase(it);
-					it = temp;
+					it->size += temp->size;
+					it->address = temp->address;
+					partitions.erase(temp);
 				}
 			}
 
 			++it;
 		}
+		*/
 
     // Pseudocode for deallocation request:
     // - for every partition
