@@ -29,6 +29,13 @@ struct Partition {
 		std::cout<<"size = "<<size<<std::endl;
 		std::cout<<"address = "<<addr<<std::endl;
 	}
+
+	bool operator==(const Partition& b) const {
+		if(tag != b.tag) return false;
+		else if (size != b.tag) return false;
+		else if (addr != b.addr) return false;
+		else return true;
+	}
 };
 
 typedef std::list<Partition>::iterator PartitionRef;
@@ -58,6 +65,7 @@ struct Simulator {
 	}
 
 	void allocate(int tag, int size) {
+		//std::cout<<"\nALLOCATE "<<tag<<" SIZE = "<<size<<std::endl;
 		PartitionRef max_free = *(free_blocks.begin());
 		int64_t max_size = 0, max_addr = 0;
 		if(!free_blocks.empty()) {
@@ -83,11 +91,14 @@ struct Simulator {
 				//also add the new free partition to the set of free blocks
 			}
 			else {
-				free_blocks.erase(max_free);
+				free_blocks.erase(std::prev(all_blocks.end()));
 				n_pages = ceil((size - all_blocks.back().size) / (double)page_size);
 				all_blocks.back().size += n_pages * page_size;
-				free_blocks.insert(max_free);
+				free_blocks.insert(std::prev(all_blocks.end()));
 				//otherwise just resize the end partition
+
+				//note that the end partition must be removed from free_blocks first since just modifying it will
+				//cause the set to be out of order
 			}
 			pages_requested += n_pages;
 
@@ -108,6 +119,9 @@ struct Simulator {
 			max_free->addr += size;
 			free_blocks.insert(max_free);
 			//adjust the size of the remaining free space
+
+			//the free partition needs to be removed before adjusting the size and address to ensure the set stays in
+			//the correct order
 		}
 		else {
 			max_free->tag = tag;
@@ -134,6 +148,7 @@ struct Simulator {
 	}
 
 	void deallocate(int tag) {
+		//std::cout<<"\nDEALLOCTAE "<<tag<<std::endl;
 		std::vector<PartitionRef> owned = tagged_blocks[tag];
 
 		for(PartitionRef i: owned) {
