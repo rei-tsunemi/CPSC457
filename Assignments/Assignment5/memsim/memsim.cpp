@@ -11,45 +11,46 @@
 #include <list>
 #include <algorithm>
 #include <cmath>
+#include <set>
+#include <unordered_map>
 
 struct Partition {
-	int64_t address, size;
 	int tag;
+	int64_t size, addr;
 
-	Partition() {
-		size = 0;
-		tag = -1;
-		//tag = -1 indicates free memory
-	}
-
-	Partition(int64_t a, int64_t s) {
-		address = a;
+	Partition(int64_t s, int64_t a) {
 		size = s;
+		addr = a;
 		tag = -1;
-	}
-
-	Partition(int64_t a, int64_t s, int t) {
-		address = a;
-		size = s;
-		tag = t;
 	}
 
 	void print() {
-		std::cout<<"Printing partition with tag "<<tag<<":\n";
-		std::cout<<"address = "<<address<<std::endl;
-		std::cout<<"size = "<<size<<"\n";
+		std::cout<<"Printing partition with tag = "<<tag<<":\n";
+		std::cout<<"size = "<<size<<std::endl;
+		std::cout<<"address = "<<addr<<std::endl;
 	}
 };
 
-typedef std::list<Partition>::iterator ParIt;
+typedef std::list<Partition>::iterator PartitionRef;
+
+struct scmp {
+	bool operator()(const PartitionRef& c1, const PartitionRef& c2) const {
+		if(c1->size == c2->size) {
+			return c1->addr < c2->addr;
+		}
+		else {
+			return c1->size > c2->size;
+		}
+	}
+};
 
 // I recommend you implement the simulator as a class. This is only a suggestion.
 // If you decide not to use this class, please remove it before submitting it.
 struct Simulator {
-	std::list<Partition> partitions;
-	std::unordered_map<int, std::vector<ParIt>> owned_partitions;
-	int64_t page_size;
-	int64_t pages_requested;
+	std::list<Partition> all_blocks;
+	std::set<PartitionRef, scmp> free_blocks;
+	std::unordered_map<long, std::vector<PartitionRef>> tagged_blocks;
+	int64_t page_size, pages_requested;
 
 	Simulator(int64_t page_size) {
 		this->page_size = page_size;
@@ -57,165 +58,150 @@ struct Simulator {
 	}
 
 	void allocate(int tag, int size) {
-		//std::cout<<"ALLOCATE "<<tag<<std::endl;
-		ParIt it, max_it;
-		int64_t max_size = 0, max_address = 0;
-
-		for(it = partitions.begin(); it != partitions.end(); ++it) {
-			if(it->tag == -1 && it->size > max_size) {
-				max_size = it->size;
-				max_address = it->address;
-				max_it = it;
-			}
+		PartitionRef max_free = *(free_blocks.begin());
+		int64_t max_size = 0, max_addr = 0;
+		if(!free_blocks.empty()) {
+			max_size = max_free->size;
+			max_addr = max_free->addr;
 		}
 
 		if(max_size < size) {
-			int64_t addr;
+			//if max_size is too small, request more pages
+			int64_t n_pages;
+			if(all_blocks.empty() || all_blocks.back().tag != -1) {
+				int64_t addr = 0;
+				if(!all_blocks.empty()) {
+					addr = all_blocks.back().addr;
+				}
+				//find the starting address of the new block
 
-			if(!partitions.empty()) {
-				addr = partitions.back().address + partitions.back().size;
-			}
-			else {
-				addr = 0;
-			}
-
-			int n_pages = 0;
-			if(partitions.back().tag == -1) {
-				n_pages = ceil((size - partitions.back().size) / (double)page_size);
-				partitions.back().size += n_pages * page_size;
-				//if the last partition is empty, just increase its size
-			}
-			else {
 				n_pages = ceil(size / (double)page_size);
-				Partition newPar(addr, (n_pages * page_size));
-				partitions.emplace_back(newPar);
-				//otherwise create a new partition of n_pages pages and add it to the end of the list
+				Partition newPar(n_pages * page_size, addr);
+				all_blocks.emplace_back(newPar);
+				free_blocks.insert(std::prev(all_blocks.end()));
+				//create a brand new partition for the requested space and add it to the end
+				//also add the new free partition to the set of free blocks
+			}
+			else {
+				free_blocks.erase(max_free);
+				n_pages = ceil((size - all_blocks.back().size) / (double)page_size);
+				all_blocks.back().size += n_pages * page_size;
+				free_blocks.insert(max_free);
+				//otherwise just resize the end partition
 			}
 			pages_requested += n_pages;
-			//update the number of requested pages
 
-			max_size = partitions.back().size;
-			max_address = partitions.back().address;
-			max_it = std::prev(partitions.end());
-			//update the values for the largest partition
+			max_free = *(free_blocks.begin());
+			max_size = max_free->size;
+			max_addr = max_free->addr;
 		}
 
 		if(max_size > size) {
-			Partition empty(max_address + size, max_size - size);
-			partitions.insert(std::next(max_it), empty);
-			max_it->tag = tag;
-			max_it->size = size;
-			//create a new partition to hold the remaining free memory and insert it in the right side of the remaining memory
-			//also update the newly occupied portion of memory
+			Partition newPar(size, max_addr);
+			newPar.tag = tag;
+			PartitionRef temp = all_blocks.insert(max_free, newPar);
+			tagged_blocks[tag].emplace_back(temp);
+			//make a new partition to hold the tagged block and resize the free one
+
+			free_blocks.erase(max_free);
+			max_free->size -= size;
+			max_free->addr += size;
+			free_blocks.insert(max_free);
+			//adjust the size of the remaining free space
 		}
 		else {
-			max_it->tag = tag;
-			//if the chosen partition is the exact size requested, just change the tag of the partition
-
+			max_free->tag = tag;
+			free_blocks.erase(max_free);
+			tagged_blocks[tag].emplace_back(max_free);
+			//since the amount of free space is the same as the required space, just change the tag of the partition
+			//and remove the block from the set of free blocks
 		}
 
-		owned_partitions[tag].push_back(max_it);
 
 
-    // Pseudocode for allocation request:
-    // - search through the list of partitions from start to end, and
-    //   find the largest partition that fits requested size
-    //     - in case of ties, pick the first partition found
-    // - if no suitable partition found:
-    //     - get minimum number of pages from OS, but consider the
-    //       case when last partition is free
-    //     - add the new memory at the end of partition list
-    //     - the last partition will be the best partition
-    // - split the best partition in two if necessary
-    //     - mark the first partition occupied, and store the tag in it
-    //     - mark the second partition free
+    	// Pseudocode for allocation request:
+	// - search through the list of partitions from start to end, and
+    	//   find the largest partition that fits requested size
+    	//     - in case of ties, pick the first partition found
+    	// - if no suitable partition found:
+    	//     - get minimum number of pages from OS, but consider the
+    	//       case when last partition is free
+    	//     - add the new memory at the end of partition list
+    	//     - the last partition will be the best partition
+    	// - split the best partition in two if necessary
+    	//     - mark the first partition occupied, and store the tag in it
+    	//     - mark the second partition free
 	}
 
 	void deallocate(int tag) {
-		//std::cout<<"DEALLOCATE "<<tag<<std::endl;
-		std::vector<ParIt> owned = owned_partitions[tag];
+		std::vector<PartitionRef> owned = tagged_blocks[tag];
 
-		for(auto it: owned) {
-			//std::cout<<"PRINTING IT"<<std::endl;
-			//it->print();
-			it->tag = -1;
+		for(PartitionRef i: owned) {
+			i->tag = -1;
 
-			ParIt temp = std::next(it);
-			//std::cout<<(it == partitions.begin())<<std::endl;
+			PartitionRef temp = std::next(i);
 			if(temp->tag == -1) {
-				it->size += temp->size;
-				partitions.erase(temp);
+				i->size += temp->size;
+				all_blocks.erase(temp);
+				free_blocks.erase(temp);
 			}
 
-			temp = std::prev(it);
+			temp = std::prev(i);
 			if(temp->tag == -1) {
-				it->size += temp->size;
-				it->address = temp->address;
-				partitions.erase(temp);
+				i->size += temp->size;
+				i->addr = temp->addr;
+				all_blocks.erase(temp);
+				free_blocks.erase(temp);
 			}
+
+			free_blocks.insert(i);
 		}
 
-		owned_partitions.erase(tag);
+		tagged_blocks.erase(tag);
 
-		/*
-		ParIt it = partitions.begin();
-		while(1) {
-			if(it == partitions.end()) break;
-			if(it == partitions.end()) return;
-
-			if(it->tag == tag) {
-				it->tag = -1;
-
-				ParIt temp = std::next(it);
-				if(temp->tag == -1) {
-					it->size += temp->size;
-					partitions.erase(temp);
-				}
-
-				temp = std::prev(it);
-				if(temp->tag == -1) {
-					it->size += temp->size;
-					it->address = temp->address;
-					partitions.erase(temp);
-				}
-			}
-
-			++it;
-		}
-		*/
-
-    // Pseudocode for deallocation request:
-    // - for every partition
-    //     - if partition is occupied and has a matching tag:
-    //         - mark the partition free
-    //         - merge any adjacent free partitions
+   	// Pseudocode for deallocation request:
+   	// - for every partition
+    	//     - if partition is occupied and has a matching tag:
+    	//         - mark the partition free
+    	//         - merge any adjacent free partitions
   	}
 
 	MemSimResult getStats() {
-   		MemSimResult result;
-    		result.n_pages_requested = pages_requested;
-		int64_t max_size = 0, max_address = 0;
-
-		std::list<Partition>::iterator it;
-		for(it = partitions.begin(); it != partitions.end(); ++it) {
-			if(it->tag == -1 && it->size > max_size) {
-				max_size = it->size;
-				max_address = it->address;
-			}
+		MemSimResult res;
+		res.n_pages_requested = pages_requested;
+		PartitionRef temp = *(free_blocks.begin());
+		if(!free_blocks.empty()) {
+			res.max_free_partition_size = temp->size;
+			res.max_free_partition_address = temp->addr;
+		}
+		else {
+			res.max_free_partition_size = 0;
+			res.max_free_partition_address = 0;
 		}
 
-		result.max_free_partition_size = max_size;
-		result.max_free_partition_address = max_address;
-
-    		return result;
+		return res;
  	}
 
   	void check_consistency() {
-		ParIt it;
-		for(it = partitions.begin(); it != partitions.end(); ++it) {
-			it->print();
+		std::cout<<"PRINTING ALL_BLOCKS-----------------------------------"<<std::endl;
+		for(auto i: all_blocks) {
+			i.print();
 		}
-		std::cout<<std::endl;
+
+		std::cout<<"PRINTING TAGGED_BLOCKS-----------------------------------"<<std::endl;
+		for(auto i: tagged_blocks) {
+			std::cout<<"Blocks owned by "<<i.first<<std::endl;
+			for(auto j: i.second) {
+				j->print();
+			}
+		}
+
+		std::cout<<"PRINTING FREE_BLOCKS-----------------------------------"<<std::endl;
+		for(auto i: free_blocks) {
+			i->print();
+		}
+
+		std::cout<<"\n\n";
 
     // you do not need to implement this method at all - this is just my suggestion
     // to help you with debugging
