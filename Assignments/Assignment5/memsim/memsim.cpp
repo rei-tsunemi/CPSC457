@@ -65,12 +65,13 @@ struct Simulator {
 	}
 
 	void allocate(int tag, int size) {
-		//std::cout<<"\nALLOCATE "<<tag<<" SIZE = "<<size<<std::endl;
 		PartitionRef max_free = *(free_blocks.begin());
 		int64_t max_size = 0, max_addr = 0;
+
 		if(!free_blocks.empty()) {
 			max_size = max_free->size;
 			max_addr = max_free->addr;
+			//if there is a free block, set the max size and address of this block appropriately
 		}
 
 		if(max_size < size) {
@@ -101,10 +102,12 @@ struct Simulator {
 				//cause the set to be out of order
 			}
 			pages_requested += n_pages;
+			//track the number of pages needed
 
 			max_free = *(free_blocks.begin());
 			max_size = max_free->size;
 			max_addr = max_free->addr;
+			//adjust all variables tracking the info of the largest free partition
 		}
 
 		if(max_size > size) {
@@ -130,35 +133,22 @@ struct Simulator {
 			//since the amount of free space is the same as the required space, just change the tag of the partition
 			//and remove the block from the set of free blocks
 		}
-
-
-
-    	// Pseudocode for allocation request:
-	// - search through the list of partitions from start to end, and
-    	//   find the largest partition that fits requested size
-    	//     - in case of ties, pick the first partition found
-    	// - if no suitable partition found:
-    	//     - get minimum number of pages from OS, but consider the
-    	//       case when last partition is free
-    	//     - add the new memory at the end of partition list
-    	//     - the last partition will be the best partition
-    	// - split the best partition in two if necessary
-    	//     - mark the first partition occupied, and store the tag in it
-    	//     - mark the second partition free
 	}
 
 	void deallocate(int tag) {
-		//std::cout<<"\nDEALLOCTAE "<<tag<<std::endl;
 		std::vector<PartitionRef> owned = tagged_blocks[tag];
+		//get all partitions owned by the given tag
 
 		for(PartitionRef i: owned) {
 			i->tag = -1;
+			//change the tag of the current block
 
 			PartitionRef temp = std::next(i);
 			if(temp->tag == -1) {
 				i->size += temp->size;
 				all_blocks.erase(temp);
 				free_blocks.erase(temp);
+				//if the block to the right is also free, merge it into i and remove it from the free_block list
 			}
 
 			temp = std::prev(i);
@@ -167,31 +157,33 @@ struct Simulator {
 				i->addr = temp->addr;
 				all_blocks.erase(temp);
 				free_blocks.erase(temp);
+				//if the block to the left is also free, merge it into i and remove it from the free_block list
 			}
 
 			free_blocks.insert(i);
+			//add the newly freed block of memory into the free_block list
 		}
 
 		tagged_blocks.erase(tag);
-
-   	// Pseudocode for deallocation request:
-   	// - for every partition
-    	//     - if partition is occupied and has a matching tag:
-    	//         - mark the partition free
-    	//         - merge any adjacent free partitions
+		//remove all blocks with this tag from the list of tagged blocks
   	}
 
 	MemSimResult getStats() {
 		MemSimResult res;
 		res.n_pages_requested = pages_requested;
+		//get the number of pages requested throughout the entire simulation
+
 		PartitionRef temp = *(free_blocks.begin());
 		if(!free_blocks.empty()) {
 			res.max_free_partition_size = temp->size;
 			res.max_free_partition_address = temp->addr;
+			//if there are any free blocks left, take the top one out of the set
+			//to get the block with the max size
 		}
 		else {
 			res.max_free_partition_size = 0;
 			res.max_free_partition_address = 0;
+			//otherwise there are no free blocks so set the size and address to 0
 		}
 
 		return res;
@@ -202,46 +194,24 @@ struct Simulator {
 		for(auto i: all_blocks) {
 			i.print();
 		}
+		//check that the linked list is correct
 
-		std::cout<<"PRINTING TAGGED_BLOCKS-----------------------------------"<<std::endl;
+		std::cout<<"PRINTING TAGGED_BLOCKS---------------------------------"<<std::endl;
 		for(auto i: tagged_blocks) {
 			std::cout<<"Blocks owned by "<<i.first<<std::endl;
 			for(auto j: i.second) {
 				j->print();
 			}
 		}
+		//check that the hash map is correct
 
 		std::cout<<"PRINTING FREE_BLOCKS-----------------------------------"<<std::endl;
 		for(auto i: free_blocks) {
 			i->print();
 		}
+		//check that the set is correct
 
 		std::cout<<"\n\n";
-
-    // you do not need to implement this method at all - this is just my suggestion
-    // to help you with debugging
-
-    // mem_sim() calls this after every request to make sure all data structures
-    // are consistent. Since this will probablly slow down your code, you should
-    // disable calling this in the mem_sim() function below before submitting
-    // your code for grading.
-
-    // here are some suggestions for consistency checks (see appendix also):
-
-    // make sure the sum of all partition sizes in your linked list is
-    // the same as number of page requests * page_size
-
-    // make sure your addresses are correct
-
-    // make sure the number of all partitions in your tag data structure +
-    // number of partitions in your free blocks is the same as the size
-    // of the linked list
-
-    // make sure that every free partition is in free blocks
-
-    // make sure that every partition in free_blocks is actually free
-
-    // make sure that none of the partition sizes or addresses are < 1
   	}
 };
 
